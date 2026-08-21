@@ -1,8 +1,9 @@
-# 开发期 --patch 覆盖层（绝对路径加载本地插件）。
+# 开发期 --patch 覆盖层（--patch 的插件路径必须是绝对路径）。
+# 使用前把下面的 name 改成你本机 clone 到的绝对路径（指向 index.js）。
 # 打包安装时请用包内的 cordis.patch.yml（按包名 dsh-rembg 解析）。
 - insert:
     - id: rembg
-      name: '/root/test2/rembg-plugin/index.js'
+      name: '/absolute/path/to/rembg-plugin/index.js'
       config:
         model: u2net
         timeoutMs: 600000
