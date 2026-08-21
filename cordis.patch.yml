@@ -1,0 +1,4 @@
+# 打包安装后由 profile 应用的补丁层：按包名解析，Node 会找到已安装代码。
+- insert:
+    - id: rembg
+      name: dsh-rembg

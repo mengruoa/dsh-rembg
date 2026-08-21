@@ -1,0 +1,18 @@
+# 运行时产物（勿提交）
+.venv/
+.u2net/
+.pip-cache/
+logs/
+*.onnx
+
+# Python
+__pycache__/
+*.pyc
+
+# Node / pnpm
+node_modules/
+dist/
+lib/
+
+# 系统
+.DS_Store
