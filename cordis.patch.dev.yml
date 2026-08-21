@@ -3,7 +3,7 @@
 # 打包安装时请用包内的 cordis.patch.yml（按包名 dsh-rembg 解析）。
 - insert:
     - id: rembg
-      name: '/absolute/path/to/rembg-plugin/index.js'
+      name: '/root/dsh-rembg/index.js'
       config:
         model: u2net
         timeoutMs: 600000

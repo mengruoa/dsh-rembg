@@ -1,13 +1,23 @@
 {
   "name": "dsh-rembg",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "type": "module",
   "main": "index.js",
-  "files": ["index.js", "install.sh", "rembg_worker.py", "cordis.patch.yml"],
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json"
+  },
+  "files": ["index.js", "client.js", "install.sh", "rembg_worker.py", "cordis.patch.yml"],
   "description": "DSH plugin: register a rembg tool to remove image backgrounds for the model",
   "license": "MIT",
   "author": "mengruoa",
   "keywords": ["dsh", "plugin", "rembg", "background-removal", "deepseek-harness"],
+  "peerDependencies": {
+    "@deepseek-ai/dsh-settings": "*",
+    "@deepseek-ai/dsh-tools": "*",
+    "@deepseek-ai/schemastery": "*"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mengruoa/dsh-rembg.git"
@@ -15,6 +25,10 @@
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": ["@deepseek-ai/dsh-client-runtime", "@deepseek-ai/dsh-client-ui-settings", "@deepseek-ai/dsh-client-ui-settings-plugins"]
     }
   }
 }

@@ -81,7 +81,10 @@ pnpm dsh web --patch ./cordis.patch.dev.yml
     installDir: '/home/you/.dsh/rembg'
 ```
 
-## 二、配置项
+## 二、设置页面
+
+打开 Web GUI 的**设置 → 插件 → 插件配置 → rembg 图像背景移除**，可以选择 PyPI/GitHub 镜像源并点击**初始化环境**。初始化会在 `installDir` 内执行幂等的 `install.sh`，不会写入全局 Python 环境；之后工具调用直接复用该环境。设置页保存的镜像源会同时影响 pip 依赖与 u2net 模型下载。
+
 
 | 字段 | 默认 | 说明 |
 |------|------|------|

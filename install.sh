@@ -29,8 +29,9 @@ export ORT_DISABLE_TELEMETRY=1
 #                               中科大 https://pypi.mirrors.ustc.edu.cn/simple/
 #   GH_MIRROR      —— GitHub 下载加速前缀，默认 ghfast.top；留空 = 直连 GitHub。
 #                     常用备选：https://gh-proxy.com/  https://ghproxy.net/
-export PIP_INDEX_URL="${PIP_INDEX_URL:-https://pypi.tuna.tsinghua.edu.cn/simple}"
+PIP_INDEX_URL="${PIP_INDEX_URL:-https://pypi.tuna.tsinghua.edu.cn/simple}"
 GH_MIRROR="${GH_MIRROR:-https://ghfast.top/}"
+export PIP_INDEX_URL
 
 VENV_DIR="$ROOT_DIR/.venv"
 MODEL_HOME="$ROOT_DIR/.u2net"

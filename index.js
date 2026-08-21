@@ -11,11 +11,14 @@
 import { spawn } from 'node:child_process'
 import { basename, dirname, extname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { settingsNamespace } from '@deepseek-ai/dsh-settings'
 import Schema from '@deepseek-ai/schemastery'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 
 export const name = 'rembg-tool'
-export const inject = ['tools']
+export const inject = ['tools', 'settings']
+
+export const REMBG_SETTINGS_NAMESPACE = settingsNamespace('rembg-tool')
 
 export const Config = Schema.object({
   // 插件自装目录（venv + 模型 + 日志都放这里）。缺省 = 本文件所在目录。
@@ -24,7 +27,11 @@ export const Config = Schema.object({
   model: Schema.string().default('u2net'),
   // 单次调用（含首次安装）的总体超时。首次安装较慢，建议给足。
   timeoutMs: Schema.number().default(600000),
-  // 首次调用工具时自动安装；关闭则要求先手动 `bash install.sh`。
+  // pip 镜像；留空时由 install.sh 使用默认镜像。
+  pipIndexUrl: Schema.string().default('https://pypi.tuna.tsinghua.edu.cn/simple'),
+  // GitHub 下载加速前缀；留空表示直连。
+  ghMirror: Schema.string().default('https://ghfast.top/'),
+  // 首次调用工具时自动安装；关闭则要求先在设置页初始化。
   autoInstall: Schema.boolean().default(true),
 })
 
@@ -36,13 +43,75 @@ export function apply(ctx, config) {
   const worker = join(root, 'rembg_worker.py')
   const installer = join(root, 'install.sh')
 
+  const settings = ctx.settings.register(REMBG_SETTINGS_NAMESPACE, Config, {
+    base: config,
+    applies: 'live',
+  })
+
+  function settingsSnapshot(webCtx) {
+    const descriptor = webCtx.settings.describe().find(row => row.ns === REMBG_SETTINGS_NAMESPACE)
+    return {
+      writable: webCtx.settings.writable,
+      settings: {
+        value: descriptor?.value ?? {},
+        revision: descriptor?.revision ?? 0,
+        ...(descriptor?.base === undefined ? {} : { base: descriptor.base }),
+        ...(descriptor?.user === undefined ? {} : { user: descriptor.user }),
+      },
+    }
+  }
+
+  function sendJson(res, status, payload) {
+    const body = JSON.stringify(payload)
+    res.writeHead(status, { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) })
+    res.end(body)
+  }
+
+  function collectBody(req) {
+    return new Promise((resolve, reject) => {
+      const chunks = []
+      req.on('data', chunk => chunks.push(chunk))
+      req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')))
+      req.on('error', reject)
+    })
+  }
+
+  async function handleSettingsRequest(webCtx, req, res) {
+    try {
+      if (req.method === 'GET') return sendJson(res, 200, { ok: true, value: settingsSnapshot(webCtx) })
+      if (req.method !== 'POST') return sendJson(res, 405, { ok: false, error: { message: 'method not allowed' } })
+      const body = JSON.parse(await collectBody(req))
+      if (body.action === 'mutate') {
+        if (!webCtx.settings.writable) throw new Error('settings provider is read-only')
+        await webCtx.settings.mutate(REMBG_SETTINGS_NAMESPACE, Array.isArray(body.ops) ? body.ops : [], body.expectedRevision)
+        return sendJson(res, 200, { ok: true, value: settingsSnapshot(webCtx) })
+      }
+      if (body.action === 'initialize') {
+        const current = settings.get()
+        await ensureInstalled(current)
+        return sendJson(res, 200, { ok: true, value: { ...settingsSnapshot(webCtx), initialized: true } })
+      }
+      sendJson(res, 400, { ok: false, error: { message: 'unknown action' } })
+    } catch (err) {
+      sendJson(res, 400, { ok: false, error: { message: String(err?.message ?? err) } })
+    }
+  }
+
+  ctx.inject(['webServer'], (webCtx) => {
+    webCtx.effect(() => webCtx.webServer.register({
+      kind: 'exact',
+      path: '/_dsh/rembg/settings',
+      handler: (req, res) => handleSettingsRequest(webCtx, req, res),
+    }), 'rembg-tool: settings route')
+  })
+
   let installPromise = null
   let installDone = false
 
   // 运行一个子进程，捕获 stdout/stderr，支持超时与 exec.signal 取消。
-  function runCommand(cmd, args, { signal, timeoutMs }) {
+  function runCommand(cmd, args, { signal, timeoutMs, env }) {
     return new Promise((resolve, reject) => {
-      const child = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'] })
+      const child = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'], env })
       let stdout = ''
       let stderr = ''
       child.stdout.on('data', (d) => { stdout += d })
@@ -103,12 +172,20 @@ export function apply(ctx, config) {
   }
 
   // 首次使用才安装；install.sh 幂等，已就绪会立即返回。用单个 Promise 避免并发重复安装。
-  async function ensureInstalled() {
+  async function ensureInstalled(overrides = settings.get()) {
     if (installDone) return
     if (!installPromise) {
       installPromise = (async () => {
-        console.log(`[rembg] 首次使用：正在 ${root} 安装 rembg 环境（详见 logs/install.log）…`)
-        await runCommand('bash', [installer], { signal: undefined, timeoutMs: config.timeoutMs })
+        console.log(`[rembg] 正在 ${root} 安装环境（详见 logs/install.log）…`)
+        await runCommand('bash', [installer], {
+          signal: undefined,
+          timeoutMs: overrides.timeoutMs || config.timeoutMs,
+          env: {
+            ...process.env,
+            PIP_INDEX_URL: overrides.pipIndexUrl || '',
+            GH_MIRROR: overrides.ghMirror || '',
+          },
+        })
         installDone = true
         console.log('[rembg] 环境就绪')
       })().finally(() => { installPromise = null })
@@ -149,11 +226,12 @@ export function apply(ctx, config) {
       }],
     },
     async execute(args, exec) {
-      const model = args.model || config.model
+      const model = args.model || settings.get().model
       const stem = basename(args.path, extname(args.path))
       const outPath = join(dirname(args.path), `${stem}_no_bg.png`)
 
-      if (config.autoInstall) await ensureInstalled()
+      const current = settings.get()
+      if (current.autoInstall) await ensureInstalled(current)
 
       const { stdout } = await runCommand(
         python,
