@@ -22,12 +22,22 @@ export PIP_DISABLE_PIP_VERSION_CHECK=1
 export PYTHONNOUSERSITE=1
 export ORT_DISABLE_TELEMETRY=1
 
+# ---------------------------------------------------------------------------
+# 镜像源（均可用环境变量覆盖；留空则走官方源）
+#   PIP_INDEX_URL  —— pip 下载源，默认清华 PyPI。
+#                     常用备选：阿里云 https://mirrors.aliyun.com/pypi/simple/
+#                               中科大 https://pypi.mirrors.ustc.edu.cn/simple/
+#   GH_MIRROR      —— GitHub 下载加速前缀，默认 ghfast.top；留空 = 直连 GitHub。
+#                     常用备选：https://gh-proxy.com/  https://ghproxy.net/
+export PIP_INDEX_URL="${PIP_INDEX_URL:-https://pypi.tuna.tsinghua.edu.cn/simple}"
+GH_MIRROR="${GH_MIRROR:-https://ghfast.top/}"
+
 VENV_DIR="$ROOT_DIR/.venv"
 MODEL_HOME="$ROOT_DIR/.u2net"
 MODEL_DIR="$MODEL_HOME/models/u2net"
 MODEL_FILE="$MODEL_DIR/u2net.onnx"
 
-MODEL_URL="https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2net.onnx"
+MODEL_URL="${GH_MIRROR}https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2net.onnx"
 MODEL_MD5="60024c5c889badc19c04ad937298a77b"
 
 LOG_DIR="$ROOT_DIR/logs"

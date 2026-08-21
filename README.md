@@ -77,6 +77,17 @@ dsh --profile demo
 | `timeoutMs` | `600000` | 单次调用（含首次安装）超时 |
 | `autoInstall` | `true` | 首次调用自动安装；`false` 则需先手动 `bash install.sh` |
 
+### 镜像源（国内加速）
+
+`install.sh` 默认已走国内镜像，全部可用环境变量覆盖，留空则回退官方源：
+
+| 变量 | 默认 | 说明 |
+|------|------|------|
+| `PIP_INDEX_URL` | `https://pypi.tuna.tsinghua.edu.cn/simple` | pip 下载源；备选：阿里云 `https://mirrors.aliyun.com/pypi/simple/`、中科大 `https://pypi.mirrors.ustc.edu.cn/simple/` |
+| `GH_MIRROR` | `https://ghfast.top/` | GitHub 下载加速前缀；备选 `https://gh-proxy.com/`、`https://ghproxy.net/`；留空 = 直连 GitHub |
+
+手动预装时同样生效：`bash install.sh`，或用 `GH_MIRROR= GH_MIRROR="" ...` 之类覆盖。
+
 ## 四、工具契约
 
 - **入参**：`path`（必填，输入图绝对路径）、`model`（可选）。
