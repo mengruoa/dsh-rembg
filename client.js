@@ -15,9 +15,9 @@ window.__ModuleLoader__.load({ id: "dsh-rembg", factory: (require) => {
     let snap = { status: 'loading', writable: false, value: {}, base: {}, user: {}, revision: 0 }
     const listeners = new Set()
     const notify = () => listeners.forEach((fn) => fn())
-    const load = async () => { const r = await fetch(ROUTE); const b = await r.json(); if (!b.ok) throw new Error(b.error?.message || '读取失败'); snap = { status: 'ready', writable: b.value.writable, ...b.value.settings }; notify() }
+    const load = async () => { const r = await fetch(ROUTE); const b = await r.json(); if (!b.ok) throw new Error(b.error?.message || '读取失败'); snap = { status: 'ready', writable: b.value.writable, installation: b.value.installation, ...b.value.settings }; notify() }
     const mutate = async (ops) => { const r = await fetch(ROUTE, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ action:'mutate', ops, expectedRevision:snap.revision }) }); const b=await r.json(); if(!b.ok) throw new Error(b.error?.message || '保存失败'); snap={status:'ready',writable:b.value.writable,...b.value.settings}; notify() }
-    const initialize = async () => { const r=await fetch(ROUTE,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'initialize'})}); const b=await r.json(); if(!b.ok) throw new Error(b.error?.message || '初始化失败'); notify() }
+    const initialize = async () => { snap = { ...snap, installation: { status: 'installing', error: null } }; notify(); const r=await fetch(ROUTE,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'initialize'})}); const b=await r.json(); if(!b.ok) throw new Error(b.error?.message || '初始化失败'); snap = { ...snap, installation: b.value.installation }; notify() }
     return { getSnapshot:()=>snap, subscribe:(fn)=>(listeners.add(fn),()=>listeners.delete(fn)), load, mutate, initialize }
   }
   function Card({ controller }) {
@@ -26,7 +26,7 @@ window.__ModuleLoader__.load({ id: "dsh-rembg", factory: (require) => {
     React.useEffect(()=>{ controller.load().catch(e=>setStatus(e.message)) },[])
     const value={...s.base,...s.value,...draft}; const choose=(v)=>{const m=MIRRORS.find(x=>x[0]===v)||MIRRORS[0];setDraft({pipIndexUrl:m[1],ghMirror:m[2]})}
     const save=async()=>{try{await controller.mutate(Object.entries(draft).map(([path,value])=>({op:'set',path:[path],value})));setDraft({});setStatus('已保存')}catch(e){setStatus(e.message)}}
-    const init=async()=>{setStatus('正在初始化环境…');try{await controller.initialize();setStatus('环境初始化完成')}catch(e){setStatus(e.message)}}
+    const init=async()=>{setStatus('正在初始化环境…');try{await controller.initialize();setStatus('环境初始化完成')}catch(e){setStatus(e.message);controller.load().catch(()=>{})}}
     return React.createElement('li', { className: 'rembg-card' },
       React.createElement('button', { className: 'rembg-head', onClick: () => setOpen(!open), 'aria-expanded': open },
         React.createElement('span', { className: 'rembg-headtext' },
@@ -39,9 +39,10 @@ window.__ModuleLoader__.load({ id: "dsh-rembg", factory: (require) => {
           React.createElement('select', { className: 'rembg-input', value: MIRRORS.find(x => x[1] === value.pipIndexUrl && x[2] === value.ghMirror)?.[0] || MIRRORS[0][0], disabled: !s.writable, onChange: e => choose(e.target.value) },
             MIRRORS.map(x => React.createElement('option', { key: x[0], value: x[0] }, x[0]))),
           React.createElement('span', { className: 'rembg-hint' }, value.pipIndexUrl || 'pip 官方源；GitHub 直连')),
-        React.createElement('div', { className: 'rembg-field' },
-          React.createElement('label', { className: 'rembg-label' }, '安装目录'),
-          React.createElement('input', { className: 'rembg-input', value: value.installDir || '', readOnly: true })),
+          React.createElement('div', { className: 'rembg-field' },
+            React.createElement('span', { className: 'rembg-label' }, '安装状态'),
+            React.createElement('span', { className: 'rembg-status' }, ({ installed: '已安装', 'not-installed': '未安装', installing: '正在安装' }[s.installation?.status] || '未安装')),
+            s.installation?.error ? React.createElement('span', { className: 'rembg-hint' }, s.installation.error) : null),
         React.createElement('div', { className: 'rembg-actions' },
           React.createElement('span', { className: 'rembg-status' }, status),
           React.createElement('button', { className: 'rembg-button', onClick: init, disabled: !s.writable }, '初始化环境'),

@@ -83,12 +83,11 @@ pnpm dsh web --patch ./cordis.patch.dev.yml
 
 ## 二、设置页面
 
-打开 Web GUI 的**设置 → 插件 → 插件配置 → rembg 图像背景移除**，可以选择 PyPI/GitHub 镜像源并点击**初始化环境**。初始化会在 `installDir` 内执行幂等的 `install.sh`，不会写入全局 Python 环境；之后工具调用直接复用该环境。设置页保存的镜像源会同时影响 pip 依赖与 u2net 模型下载。
+打开 Web GUI 的**设置 → 插件 → 插件配置 → rembg 图像背景移除**，可以选择 PyPI/GitHub 镜像源，查看当前安装状态（已安装、未安装、正在安装），并点击**初始化环境**。初始化会在 `installDir` 内执行幂等的 `install.sh`，不会写入全局 Python 环境；之后工具调用直接复用该环境。设置页保存的镜像源会同时影响 pip 依赖与 u2net 模型下载。
 
 
 | 字段 | 默认 | 说明 |
 |------|------|------|
-| `installDir` | 插件源文件目录 | venv + 模型 + 日志所在目录 |
 | `model` | `u2net` | 默认模型；调用时可用参数覆盖 |
 | `timeoutMs` | `600000` | 单次调用（含首次安装）超时 |
 | `autoInstall` | `true` | 首次调用自动安装；`false` 则需先手动 `bash install.sh` |

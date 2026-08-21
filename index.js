@@ -8,6 +8,7 @@
 // 说明：使用纯 ESM JavaScript 以便零构建直接 `--patch` 加载，也便于打成
 // npm bundle；如需类型提示可改写为 TypeScript（见 README）。
 
+import { existsSync } from 'node:fs'
 import { spawn } from 'node:child_process'
 import { basename, dirname, extname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -52,6 +53,10 @@ export function apply(ctx, config) {
     const descriptor = webCtx.settings.describe().find(row => row.ns === REMBG_SETTINGS_NAMESPACE)
     return {
       writable: webCtx.settings.writable,
+      installation: {
+        status: installStatus(),
+        error: installError,
+      },
       settings: {
         value: descriptor?.value ?? {},
         revision: descriptor?.revision ?? 0,
@@ -107,6 +112,13 @@ export function apply(ctx, config) {
 
   let installPromise = null
   let installDone = false
+  let installError = null
+
+  function installStatus() {
+    if (installPromise) return 'installing'
+    if (installDone || (existsSync(join(root, '.venv', 'bin', 'python')) && existsSync(join(root, '.u2net', 'models', 'u2net', 'u2net.onnx')))) return 'installed'
+    return 'not-installed'
+  }
 
   // 运行一个子进程，捕获 stdout/stderr，支持超时与 exec.signal 取消。
   function runCommand(cmd, args, { signal, timeoutMs, env }) {
@@ -176,6 +188,7 @@ export function apply(ctx, config) {
     if (installDone) return
     if (!installPromise) {
       installPromise = (async () => {
+        installError = null
         console.log(`[rembg] 正在 ${root} 安装环境（详见 logs/install.log）…`)
         await runCommand('bash', [installer], {
           signal: undefined,
@@ -187,8 +200,12 @@ export function apply(ctx, config) {
           },
         })
         installDone = true
+        installError = null
         console.log('[rembg] 环境就绪')
-      })().finally(() => { installPromise = null })
+      })().catch((error) => {
+        installError = String(error?.message ?? error)
+        throw error
+      }).finally(() => { installPromise = null })
     }
     await installPromise
   }
