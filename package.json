@@ -1,0 +1,8 @@
+{
+  "name":"dsh-rembg-gpu","version":"0.1.0","type":"module","main":"index.js",
+  "exports":{".":"./index.js","./client":"./client.js","./package.json":"./package.json"},
+  "files":["index.js","client.js","install.sh","rembg_gpu_worker.py","cordis.patch.yml"],
+  "description":"DSH GPU rembg plugin with environment checks and setup UI","license":"MIT",
+  "peerDependencies":{"@deepseek-ai/dsh-settings":"*","@deepseek-ai/dsh-tools":"*","@deepseek-ai/schemastery":"*"},
+  "dsh":{"bundle":{"patch":"./cordis.patch.yml"},"client":{"platform":"web","inject":["@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-settings","@deepseek-ai/dsh-client-ui-settings-plugins"]}}
+}
