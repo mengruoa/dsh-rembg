@@ -38,19 +38,19 @@ GPU 模式需要 NVIDIA GPU、可用驱动和 `nvidia-smi`；CPU 模式无需 NV
 在 DSH 中让模型调用：
 
 ```text
-用 rembg_gpu 工具把 /path/to/photo.png 的背景去掉。
+用 rembg 工具把 /path/to/photo.png 的背景去掉。
 ```
 
 工具参数：
 
 ```text
-rembg_gpu(path, model?)
+rembg(path, model?)
 ```
 
 - `path`：输入图片的绝对路径，必填。
 - `model`：已安装的模型名称，可选，默认使用设置中的模型。
 
-如需查看可用模型，先调用 `rembg_gpu_models`，再使用已安装且校验有效的模型调用 `rembg_gpu`。处理完成后会返回输出文件信息。
+如需查看可用模型，先调用 `rembg_models`，再使用已安装且校验有效的模型调用 `rembg`。处理完成后会返回输出文件信息。
 
 ## 卸载
 

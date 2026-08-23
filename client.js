@@ -5,7 +5,7 @@ window.__ModuleLoader__.load({ id: 'dsh-rembg', factory: (require) => {
     ['阿里云 PyPI', 'https://mirrors.aliyun.com/pypi/simple/'],
     ['官方 PyPI', 'https://pypi.org/simple'],
   ]
-  const CSS = '.rg-card{border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-layer-3);list-style:none;min-width:0}.rg-head{display:flex;align-items:center;width:100%;gap:12px;padding:14px 16px;color:inherit;background:transparent;border:0;text-align:left;font:inherit;cursor:pointer}.rg-headtext{display:flex;flex-direction:column;gap:4px;flex:1;min-width:0}.rg-title{font-weight:600;font-size:15px}.rg-desc,.rg-hint,.rg-status{display:block;font-size:12px;color:var(--dsw-alias-label-tertiary);margin-top:6px;overflow-wrap:anywhere}.rg-body{border-top:1px solid var(--dsw-alias-border-l2);padding:0 16px 12px}.rg-field{display:flex;flex-direction:column;gap:6px;margin-top:14px}.rg-status-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 24px}.rg-status-ok{color:#2e9b5f}.rg-status-error{color:#c23b3b}.rg-input{box-sizing:border-box;width:100%;height:34px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:0 10px;background:var(--dsw-alias-bg-layer-3);color:inherit}.rg-actions{display:flex;align-items:center;justify-content:flex-end;gap:12px;margin-top:16px;min-width:0}.rg-init-options{display:flex;align-items:center;gap:10px}.rg-check{display:flex;align-items:center;gap:7px;font-size:13px;white-space:nowrap}.rg-check input{margin:0}.rg-action-message{flex:1;min-width:0;margin-top:0}.rg-button{flex:none;padding:6px 12px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:transparent;color:inherit;cursor:pointer;white-space:nowrap}.rg-button:disabled{opacity:.5;cursor:default}.rg-primary{background:var(--dsw-alias-label-primary);color:var(--dsw-alias-bg-layer-3)}.rg-danger{background:#c23b3b;border-color:#c23b3b;color:#fff}.rg-model-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:20px}.rg-model{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;border-top:1px solid var(--dsw-alias-border-l2);padding:10px 0;min-width:0}.rg-model-name{display:block;font-size:13px;overflow-wrap:anywhere}.rg-small{padding:4px 8px;font-size:12px}@media(max-width:640px){.rg-status-row,.rg-model-list{grid-template-columns:1fr}.rg-actions{align-items:flex-end;flex-wrap:wrap}.rg-action-message{flex-basis:100%}.rg-body{padding-left:12px;padding-right:12px}}'
+  const CSS = '.rg-card{border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-layer-3);list-style:none;min-width:0}.rg-head{display:flex;align-items:center;width:100%;gap:12px;padding:14px 16px;color:inherit;background:transparent;border:0;text-align:left;font:inherit;cursor:pointer}.rg-headtext{display:flex;flex-direction:column;gap:4px;flex:1;min-width:0}.rg-title{font-weight:600;font-size:15px}.rg-desc,.rg-hint,.rg-status{display:block;font-size:12px;color:var(--dsw-alias-label-tertiary);margin-top:6px;overflow-wrap:anywhere}.rg-body{border-top:1px solid var(--dsw-alias-border-l2);padding:0 16px 12px}.rg-field{display:flex;flex-direction:column;gap:6px;margin-top:14px}.rg-status-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 24px}.rg-status-ok{color:#2e9b5f}.rg-status-error{color:#c23b3b}.rg-input{box-sizing:border-box;width:100%;height:34px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:0 10px;background:var(--dsw-alias-bg-layer-3);color:inherit}.rg-actions{display:flex;align-items:center;justify-content:flex-end;gap:12px;margin-top:16px;min-width:0}.rg-init-options{display:flex;align-items:center;gap:10px}.rg-check{display:flex;align-items:center;gap:7px;font-size:13px;white-space:nowrap}.rg-check input{margin:0}.rg-action-message{flex:1;min-width:0;margin-top:0}.rg-button{flex:none;padding:6px 12px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:transparent;color:inherit;cursor:pointer;white-space:nowrap}.rg-button:disabled{opacity:.5;cursor:default}.rg-primary{background:var(--dsw-alias-label-primary);color:var(--dsw-alias-bg-layer-3)}.rg-danger{background:#c23b3b;border-color:#c23b3b;color:#fff}.rg-model-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:20px}.rg-model{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;border-top:1px solid var(--dsw-alias-border-l2);padding:10px 0;min-width:0}.rg-model-name{display:block;font-size:13px;overflow-wrap:anywhere}.rg-progress{height:6px;margin-top:8px;border-radius:3px;background:var(--dsw-alias-bg-layer-1);overflow:hidden}.rg-progress-bar{height:100%;background:#2e9b5f;transition:width .2s ease}.rg-download-meta{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--dsw-alias-label-tertiary);margin-top:5px}.rg-small{padding:4px 8px;font-size:12px}@media(max-width:640px){.rg-status-row,.rg-model-list{grid-template-columns:1fr}.rg-actions{align-items:flex-end;flex-wrap:wrap}.rg-action-message{flex-basis:100%}.rg-body{padding-left:12px;padding-right:12px}}'
 
   function store() {
     let snapshot = { status: 'loading', writable: false, settings: { value: {}, base: {}, revision: 0 }, installation: { status: 'not-installed', mode: null }, gpu: { ok: false, reason: '' }, models: [] }
@@ -42,7 +42,8 @@ window.__ModuleLoader__.load({ id: 'dsh-rembg', factory: (require) => {
         current => ({ ...current, models: current.models.map(model => model.id === id ? { ...model, status: 'installing' } : model) }),
         () => post({ action: 'install-model', model: id }),
       ),
-      remove: id => optimistic(
+      stop: id => post({ action: 'stop-model', model: id }),
+       remove: id => optimistic(
         current => ({ ...current, models: current.models.map(model => model.id === id ? { ...model, status: 'not-installed' } : model) }),
         () => post({ action: 'delete-model', model: id }),
       ),
@@ -51,7 +52,11 @@ window.__ModuleLoader__.load({ id: 'dsh-rembg', factory: (require) => {
 
   function formatSize(bytes) {
     if (!Number.isFinite(bytes)) return '大小未知'
+    if (bytes >= 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024 / 1024).toFixed(1)} GB`
     return bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${(bytes / 1024).toFixed(1)} KB`
+  }
+  function formatSpeed(bytes) {
+    return `${formatSize(bytes)}/s`
   }
 
   function Card({ controller }) {
@@ -59,7 +64,11 @@ window.__ModuleLoader__.load({ id: 'dsh-rembg', factory: (require) => {
     const [open, setOpen] = React.useState(false)
     const [message, setMessage] = React.useState('')
     const [confirmInitialization, setConfirmInitialization] = React.useState(false)
-    React.useEffect(() => { controller.load().catch(error => setMessage(error.message)) }, [])
+    React.useEffect(() => {
+      controller.load().catch(error => setMessage(error.message))
+      const timer = setInterval(() => controller.load().catch(() => {}), 500)
+      return () => clearInterval(timer)
+    }, [])
     React.useEffect(() => {
       if (state.installation.status !== 'installed') setConfirmInitialization(false)
     }, [state.installation.status])
@@ -117,10 +126,17 @@ window.__ModuleLoader__.load({ id: 'dsh-rembg', factory: (require) => {
             return React.createElement('div', { className: 'rg-model', key: model.id },
               React.createElement('span', null,
                 React.createElement('span', { className: 'rg-model-name' }, model.id),
-                React.createElement('span', { className: 'rg-hint' }, `${model.label} · ${formatSize(model.size)} · ${label}`)),
+                React.createElement('span', { className: 'rg-hint' }, `${model.label} · ${formatSize(model.size)} · ${label}`),
+                downloading && React.createElement(React.Fragment, null,
+                  React.createElement('div', { className: 'rg-progress' }, React.createElement('div', { className: 'rg-progress-bar', style: { width: `${model.progress?.total ? Math.min(100, model.progress.downloaded / model.progress.total * 100) : 0}%` } })),
+                  React.createElement('div', { className: 'rg-download-meta' },
+                    React.createElement('span', null, `${formatSize(model.progress?.downloaded || 0)} / ${formatSize(model.progress?.total || model.size)}`),
+                    React.createElement('span', null, formatSpeed(model.progress?.speed || 0))))),
               installed
-                ? React.createElement('button', { className: 'rg-button rg-small rg-danger', disabled: !state.writable || downloading, onClick: () => action(() => controller.remove(model.id), '正在删除模型…') }, '删除')
-                : React.createElement('button', { className: 'rg-button rg-small', disabled: !state.writable || downloading, onClick: () => action(() => controller.install(model.id), '正在下载模型…') }, downloading ? '下载中' : '安装'))
+                ? React.createElement('button', { className: 'rg-button rg-small rg-danger', disabled: !state.writable, onClick: () => action(() => controller.remove(model.id), '正在删除模型…') }, '删除')
+                : downloading
+                  ? React.createElement('button', { className: 'rg-button rg-small rg-danger', disabled: !state.writable, onClick: () => action(() => controller.stop(model.id), '正在停止下载…') }, '停止')
+                  : React.createElement('button', { className: 'rg-button rg-small', disabled: !state.writable, onClick: () => action(() => controller.install(model.id), '正在下载模型…') }, '安装'))
           })))))
   }
 

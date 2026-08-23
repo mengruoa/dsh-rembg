@@ -38,6 +38,8 @@ export function apply(ctx, config) {
   const settings = ctx.settings.register(REMBG_GPU_SETTINGS_NAMESPACE, Config, { base: config, applies: 'live' })
   let installPromise = null; let installDone = false; let installError = null
   const modelJobs = new Map()
+  const modelControllers = new Map()
+  const modelProgress = new Map()
 
   function run(cmd, args, timeoutMs, env = process.env, signal) {
     return new Promise((resolve, reject) => {
@@ -65,7 +67,7 @@ export function apply(ctx, config) {
   }
   async function modelState(model) {
     const path = modelPath(model.id)
-    if (modelJobs.has(model.id)) return { ...model, status: 'installing' }
+    if (modelJobs.has(model.id)) return { ...model, status: 'installing', progress: modelProgress.get(model.id) || null }
     if (!existsSync(path)) return { ...model, status: 'not-installed' }
     try {
       const actual = await sha256(path)
@@ -88,18 +90,44 @@ export function apply(ctx, config) {
   }
   async function installModel(id) {
     const model = MODEL_MAP.get(id); if (!model) throw new Error(`不支持的模型：${id}`); if (modelJobs.has(id)) return modelJobs.get(id)
+    const controller = new AbortController()
     const job = (async () => {
       const target = modelPath(id)
       const temp = `${target}.part`
       await mkdir(dirname(target), { recursive: true })
       await rm(temp, { force: true })
-      const response = await fetch(model.downloadUrl); if (!response.ok || !response.body) throw new Error(`下载 ${id} 失败：HTTP ${response.status}`)
-      await finished(Readable.fromWeb(response.body).pipe(createWriteStream(temp)))
+      const response = await fetch(model.downloadUrl, { signal: controller.signal }); if (!response.ok || !response.body) throw new Error(`下载 ${id} 失败：HTTP ${response.status}`)
+      const total = Number(response.headers.get('content-length')) || model.size || 0
+      let downloaded = 0
+      const startedAt = Date.now()
+      const output = createWriteStream(temp)
+      try {
+        for await (const chunk of Readable.fromWeb(response.body)) {
+          if (controller.signal.aborted) throw new Error('下载已停止')
+          output.write(chunk)
+          downloaded += chunk.length
+          const elapsed = Math.max(1, Date.now() - startedAt)
+          modelProgress.set(id, { downloaded, total, speed: downloaded * 1000 / elapsed })
+        }
+        output.end()
+        await finished(output)
+      } catch (error) {
+        output.destroy()
+        throw error
+      }
       const actual = await sha256(temp); if (actual !== model.sha256) { await rm(temp, { force: true }); throw new Error(`${id} SHA256 校验失败`) }
       await rm(target, { force: true })
       const { rename } = await import('node:fs/promises')
       await rename(temp, target)
-    })().finally(() => modelJobs.delete(id)); modelJobs.set(id, job); return job
+    })().finally(async () => { modelJobs.delete(id); modelControllers.delete(id); modelProgress.delete(id); await rm(`${modelPath(id)}.part`, { force: true }) })
+    modelJobs.set(id, job)
+    modelControllers.set(id, controller)
+    modelProgress.set(id, { downloaded: 0, total: model.size || 0, speed: 0 })
+    return job
+  }
+  function stopModel(id) {
+    if (!modelJobs.has(id)) throw new Error(`模型 ${id} 当前没有下载任务`)
+    modelControllers.get(id)?.abort()
   }
   async function ensureInstalled(overrides = settings.get()) {
     const mode = overrides.useGpu ? 'gpu' : 'cpu'
@@ -125,19 +153,20 @@ export function apply(ctx, config) {
     if (req.method !== 'POST') return json(res, 405, { ok: false, error: { message: 'method not allowed' } }); const data = JSON.parse(await body(req))
     if (data.action === 'mutate') { if (!webCtx.settings.writable) throw new Error('settings provider is read-only'); await webCtx.settings.mutate(REMBG_GPU_SETTINGS_NAMESPACE, data.ops || [], data.expectedRevision) }
     else if (data.action === 'initialize') await ensureInstalled(settings.get())
-    else if (data.action === 'install-model') await installModel(data.model)
+    else if (data.action === 'install-model') { installModel(data.model).catch(() => {}) }
+    else if (data.action === 'stop-model') stopModel(data.model)
     else if (data.action === 'delete-model') { const model = MODEL_MAP.get(data.model); if (!model) throw new Error('不支持的模型'); await rm(modelPath(model.id), { force: true }) }
     else throw new Error('unknown action')
     return json(res, 200, { ok: true, value: { ...snapshot(webCtx), gpu: await gpuCheck(), models: await models() } })
   } catch (error) { return json(res, 400, { ok: false, error: { message: error.message } }) } }
   ctx.inject(['webServer'], webCtx => webCtx.effect(() => webCtx.webServer.register({ kind: 'exact', path: '/_dsh/rembg-gpu/settings', handler: (req, res) => route(webCtx, req, res) }), 'rembg-gpu: settings route'))
   ctx.tools.register(defineTool({
-    name: 'rembg_gpu_models',
-    description: 'List rembg GPU models that are installed and have passed SHA256 validation. Call this before choosing a model for rembg_gpu.',
+    name: 'rembg_models',
+    description: 'List rembg models that are installed and have passed SHA256 validation. Call this before choosing a model for rembg.',
     parameters: {},
     output: {
       schema: { type: 'object', additionalProperties: false, properties: { installed_models: { type: 'array', required: true } } },
-      render: (_args, value) => [{ type: 'text', text: `已安装 GPU 模型：${value.installed_models.join(', ') || '无'}` }],
+      render: (_args, value) => [{ type: 'text', text: `已安装模型：${value.installed_models.join(', ') || '无'}` }],
     },
     async execute() {
       const available = await models()
@@ -145,10 +174,10 @@ export function apply(ctx, config) {
     },
   }))
   ctx.tools.register(defineTool({
-    name: 'rembg_gpu',
-    description: 'Remove an image background with local NVIDIA CUDA rembg. Call rembg_gpu_models first to see installed models.',
+    name: 'rembg',
+    description: 'Remove an image background with local rembg. Call rembg_models first to see installed models.',
     parameters: { path: { type: 'string', required: true, description: 'Absolute input image path.' }, model: { type: 'string', description: 'Installed rembg model name; omit to use the configured default.' } },
-    output: { schema: { type: 'object', additionalProperties: false, properties: { output: { type: 'string', required: true }, input: { type: 'string', required: true }, model: { type: 'string', required: true }, width: { type: 'number' }, height: { type: 'number' } } }, render: (_args, value) => [{ type: 'text', text: `GPU 背景已移除：${value.output}（模型 ${value.model}）` }] },
-    async execute(args, exec) { const current = settings.get(); if (current.autoInstall) await ensureInstalled(current); const model = args.model || current.model; const available = await models(); if (!available.some(item => item.id === model && item.status === 'installed')) throw new Error(`模型 ${model} 未安装或校验无效。请先调用 rembg_gpu_models 查看已安装模型。`); const input = typeof args.path === 'string' && args.path.trim() ? args.path : typeof args.image_path === 'string' && args.image_path.trim() ? args.image_path : null; if (!input) throw new Error('缺少输入图片路径：请提供绝对路径参数 path。'); const workspace = exec.agent?.session.header.cwd || process.cwd(); const outputDir = join(workspace, '.rembg-tmp'); await mkdir(outputDir, { recursive: true }); const output = join(outputDir, `${randomUUID()}.png`); const result = await run(python, [worker, '--input', input, '--output', output, '--model', model], current.timeoutMs || config.timeoutMs, process.env, exec.signal); for (const line of result.stdout.split('\n').reverse()) { try { const value = JSON.parse(line); if (value.output) return value } catch {} } throw new Error('无法解析 GPU rembg 输出') },
+    output: { schema: { type: 'object', additionalProperties: false, properties: { output: { type: 'string', required: true }, input: { type: 'string', required: true }, model: { type: 'string', required: true }, width: { type: 'number' }, height: { type: 'number' } } }, render: (_args, value) => [{ type: 'text', text: `图片背景已移除：${value.output}（模型 ${value.model}）` }] },
+    async execute(args, exec) { const current = settings.get(); if (current.autoInstall) await ensureInstalled(current); const model = args.model || current.model; const available = await models(); if (!available.some(item => item.id === model && item.status === 'installed')) throw new Error(`模型 ${model} 未安装或校验无效。请先调用 rembg_models 查看已安装模型。`); const input = typeof args.path === 'string' && args.path.trim() ? args.path : typeof args.image_path === 'string' && args.image_path.trim() ? args.image_path : null; if (!input) throw new Error('缺少输入图片路径：请提供绝对路径参数 path。'); const workspace = exec.agent?.session.header.cwd || process.cwd(); const outputDir = join(workspace, '.rembg-tmp'); await mkdir(outputDir, { recursive: true }); const output = join(outputDir, `${randomUUID()}.png`); const result = await run(python, [worker, '--input', input, '--output', output, '--model', model], current.timeoutMs || config.timeoutMs, process.env, exec.signal); for (const line of result.stdout.split('\n').reverse()) { try { const value = JSON.parse(line); if (value.output) return value } catch {} } throw new Error('无法解析rembg 输出') },
   }))
 }
