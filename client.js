@@ -40,13 +40,18 @@ window.__ModuleLoader__.load({ id: 'dsh-rembg-gpu', factory: (require) => {
       ),
       install: id => optimistic(
         current => ({ ...current, models: current.models.map(model => model.id === id ? { ...model, status: 'installing' } : model) }),
-        () => post({ action: 'install-model', model: id, source: 'hf' }),
+        () => post({ action: 'install-model', model: id }),
       ),
       remove: id => optimistic(
         current => ({ ...current, models: current.models.map(model => model.id === id ? { ...model, status: 'not-installed' } : model) }),
         () => post({ action: 'delete-model', model: id }),
       ),
     }
+  }
+
+  function formatSize(bytes) {
+    if (!Number.isFinite(bytes)) return '大小未知'
+    return bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${(bytes / 1024).toFixed(1)} KB`
   }
 
   function Card({ controller }) {
@@ -105,7 +110,7 @@ window.__ModuleLoader__.load({ id: 'dsh-rembg-gpu', factory: (require) => {
             return React.createElement('div', { className: 'rg-model', key: model.id },
               React.createElement('span', null,
                 React.createElement('span', { className: 'rg-model-name' }, model.id),
-                React.createElement('span', { className: 'rg-hint' }, `${model.label} · ${label}`)),
+                React.createElement('span', { className: 'rg-hint' }, `${model.label} · ${formatSize(model.size)} · ${label}`)),
               installed
                 ? React.createElement('button', { className: 'rg-button rg-small', disabled: !state.writable || downloading, onClick: () => action(() => controller.remove(model.id), '正在删除模型…') }, '删除')
                 : React.createElement('button', { className: 'rg-button rg-small', disabled: !state.writable || downloading, onClick: () => action(() => controller.install(model.id), '正在下载模型…') }, downloading ? '下载中' : '安装'))

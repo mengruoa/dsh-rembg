@@ -1,4 +1,4 @@
-import { createReadStream, createWriteStream, existsSync } from 'node:fs'
+import { createReadStream, createWriteStream, existsSync, readFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { mkdir, rm, stat } from 'node:fs/promises'
 import { finished } from 'node:stream/promises'
@@ -21,17 +21,9 @@ export const Config = Schema.object({
   autoInstall: Schema.boolean().default(true),
 })
 const PLUGIN_DIR = dirname(fileURLToPath(import.meta.url))
-const HF_MIRROR_MODELS = new Set(['u2net', 'u2netp', 'u2net_cloth_seg', 'u2net_human_seg', 'isnet-anime', 'isnet-general-use', 'silueta'])
-const MODELS = [
-  ['u2net', '通用主体分割', '8d10d2f3bb75ae3b6d527c77944fc5e7dcd94b29809d47a739a7a728a912b491'],
-  ['u2netp', '轻量快速通用分割', '309c8469258dda742793dce0ebea8e6dd393174f89934733ecc8b14c76f4ddd8'],
-  ['u2net_cloth_seg', '服装分割', '6d2cbc27bfbdc989e1fd325656d65902ecc6a3ccbe94b2d3655ec114efcb128e'],
-  ['u2net_human_seg', '人体分割', '01eb6a29a5c4d8edb30b56adad9bb3a2a0535338e480724a213e0acfd2d1c73c'],
-  ['isnet-anime', '动漫人物', 'f15622d853e8260172812b657053460e20806f04b9e05147d49af7bed31a6e99'],
-  ['isnet-general-use', '通用高质量分割', '60920e99c45464f2ba57bee2ad08c919a52bbf852739e96947fbb4358c0d964a'],
-  ['silueta', '轻量移动端分割', '75da6c8d2f8096ec743d071951be73b4a8bc7b3e51d9a6625d63644f90ffeedb'],
-]
-const MODEL_MAP = new Map(MODELS.map(([id, label, sha256]) => [id, { id, label, sha256 }]))
+const MODEL_CATALOG_PATH = join(PLUGIN_DIR, 'model.json')
+const MODELS = JSON.parse(readFileSync(MODEL_CATALOG_PATH, 'utf8'))
+const MODEL_MAP = new Map(MODELS.map(model => [model.id, model]))
 
 export function apply(ctx, config) {
   const root = config.installDir || PLUGIN_DIR
@@ -86,14 +78,14 @@ export function apply(ctx, config) {
     if (installDone || existsSync(python)) return 'installed'
     return 'not-installed'
   }
-  async function installModel(id, source = 'hf') {
+  async function installModel(id) {
     const model = MODEL_MAP.get(id); if (!model) throw new Error(`不支持的模型：${id}`); if (modelJobs.has(id)) return modelJobs.get(id)
     const job = (async () => {
       const target = modelPath(id)
       const temp = `${target}.part`
       await mkdir(dirname(target), { recursive: true })
-      await rm(temp, { force: true }); const url = source === 'hf' && HF_MIRROR_MODELS.has(id) ? `https://hf-mirror.com/tomjackson2023/rembg/resolve/main/${id}.onnx?download=true` : `https://github.com/danielgatis/rembg/releases/download/v0.0.0/${id}.onnx`
-      const response = await fetch(url); if (!response.ok || !response.body) throw new Error(`下载 ${id} 失败：HTTP ${response.status}`)
+      await rm(temp, { force: true })
+      const response = await fetch(model.downloadUrl); if (!response.ok || !response.body) throw new Error(`下载 ${id} 失败：HTTP ${response.status}`)
       await finished(Readable.fromWeb(response.body).pipe(createWriteStream(temp)))
       const actual = await sha256(temp); if (actual !== model.sha256) { await rm(temp, { force: true }); throw new Error(`${id} SHA256 校验失败`) }
       await rm(target, { force: true })
@@ -122,7 +114,7 @@ export function apply(ctx, config) {
     if (req.method !== 'POST') return json(res, 405, { ok: false, error: { message: 'method not allowed' } }); const data = JSON.parse(await body(req))
     if (data.action === 'mutate') { if (!webCtx.settings.writable) throw new Error('settings provider is read-only'); await webCtx.settings.mutate(REMBG_GPU_SETTINGS_NAMESPACE, data.ops || [], data.expectedRevision) }
     else if (data.action === 'initialize') await ensureInstalled(settings.get())
-    else if (data.action === 'install-model') await installModel(data.model, data.source)
+    else if (data.action === 'install-model') await installModel(data.model)
     else if (data.action === 'delete-model') { const model = MODEL_MAP.get(data.model); if (!model) throw new Error('不支持的模型'); await rm(modelPath(model.id), { force: true }) }
     else throw new Error('unknown action')
     return json(res, 200, { ok: true, value: { ...snapshot(webCtx), gpu: await gpuCheck(), models: await models() } })
