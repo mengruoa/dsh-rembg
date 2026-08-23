@@ -20,6 +20,7 @@ export const Config = Schema.object({
   timeoutMs: Schema.number().default(900000),
   pipIndexUrl: Schema.string().default('https://mirrors.aliyun.com/pypi/simple/'),
   autoInstall: Schema.boolean().default(true),
+  useGpu: Schema.boolean().default(false),
 })
 const PLUGIN_DIR = dirname(fileURLToPath(import.meta.url))
 const MODEL_CATALOG_PATH = join(PLUGIN_DIR, 'model.json')
@@ -30,7 +31,9 @@ export function apply(ctx, config) {
   const root = config.installDir || PLUGIN_DIR
   const python = join(root, '.venv', 'bin', 'python')
   const worker = join(root, 'rembg_gpu_worker.py')
-  const installer = join(root, 'install.sh')
+  const gpuInstaller = join(root, 'install.sh')
+  const cpuInstaller = join(root, 'install-cpu.sh')
+  const modeFile = join(root, '.install-mode')
   const modelDir = join(root, '.u2net', 'models', 'u2net')
   const settings = ctx.settings.register(REMBG_GPU_SETTINGS_NAMESPACE, Config, { base: config, applies: 'live' })
   let installPromise = null; let installDone = false; let installError = null
@@ -74,9 +77,13 @@ export function apply(ctx, config) {
   async function models() {
     return Promise.all([...MODEL_MAP.values()].map(modelState))
   }
+  function installedMode() {
+    try { return readFileSync(modeFile, 'utf8').trim() } catch { return null }
+  }
   function installStatus() {
     if (installPromise) return 'installing'
-    if (installDone || existsSync(python)) return 'installed'
+    const expectedMode = settings.get().useGpu ? 'gpu' : 'cpu'
+    if ((installDone || existsSync(python)) && installedMode() === expectedMode) return 'installed'
     return 'not-installed'
   }
   async function installModel(id) {
@@ -95,19 +102,22 @@ export function apply(ctx, config) {
     })().finally(() => modelJobs.delete(id)); modelJobs.set(id, job); return job
   }
   async function ensureInstalled(overrides = settings.get()) {
-    if (installDone) return
+    const mode = overrides.useGpu ? 'gpu' : 'cpu'
+    if (installStatus() === 'installed') return
     if (!installPromise) installPromise = (async () => {
       installError = null
-      const check = await gpuCheck()
-      if (!check.ok) throw new Error(`GPU 环境不满足，无法初始化：${check.reason}`)
+      if (mode === 'gpu') {
+        const check = await gpuCheck()
+        if (!check.ok) throw new Error(`GPU 环境不满足，无法初始化：${check.reason}`)
+      }
       const pipIndexUrl = overrides.pipIndexUrl || 'https://mirrors.aliyun.com/pypi/simple/'
       if (!['https://mirrors.aliyun.com/pypi/simple/', 'https://pypi.org/simple'].includes(pipIndexUrl)) throw new Error('只允许阿里云或官方 PyPI 镜像')
-      await run('bash', [installer], overrides.timeoutMs || config.timeoutMs, { ...process.env, PIP_INDEX_URL: pipIndexUrl })
+      await run('bash', [mode === 'gpu' ? gpuInstaller : cpuInstaller], overrides.timeoutMs || config.timeoutMs, { ...process.env, PIP_INDEX_URL: pipIndexUrl })
       installDone = true
     })().catch(error => { installError = error.message; throw error }).finally(() => { installPromise = null })
     return installPromise
   }
-  function snapshot(webCtx) { const descriptor = webCtx.settings.describe().find(row => row.ns === REMBG_GPU_SETTINGS_NAMESPACE); return { writable: webCtx.settings.writable, installation: { status: installStatus(), error: installError }, settings: { value: descriptor?.value ?? {}, revision: descriptor?.revision ?? 0, ...(descriptor?.base === undefined ? {} : { base: descriptor.base }), ...(descriptor?.user === undefined ? {} : { user: descriptor.user }) } } }
+  function snapshot(webCtx) { const descriptor = webCtx.settings.describe().find(row => row.ns === REMBG_GPU_SETTINGS_NAMESPACE); const mode = installedMode(); return { writable: webCtx.settings.writable, installation: { status: installStatus(), mode, error: installError }, settings: { value: descriptor?.value ?? {}, revision: descriptor?.revision ?? 0, ...(descriptor?.base === undefined ? {} : { base: descriptor.base }), ...(descriptor?.user === undefined ? {} : { user: descriptor.user }) } } }
   function json(res, status, value) { const body = JSON.stringify(value); res.writeHead(status, { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }); res.end(body) }
   function body(req) { return new Promise((resolve, reject) => { const chunks = []; req.on('data', x => chunks.push(x)); req.on('end', () => resolve(Buffer.concat(chunks).toString())); req.on('error', reject) }) }
   async function route(webCtx, req, res) { try {

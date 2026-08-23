@@ -10,9 +10,13 @@ def main():
     from rembg import remove, new_session
     from PIL import Image
     import onnxruntime
-    if 'CUDAExecutionProvider' not in onnxruntime.get_available_providers():
-        raise RuntimeError('onnxruntime-gpu 未提供 CUDAExecutionProvider')
-    session = new_session(args.model, providers=['CUDAExecutionProvider', 'CPUExecutionProvider'])
+    providers = onnxruntime.get_available_providers()
+    if 'CUDAExecutionProvider' in providers:
+        session = new_session(args.model, providers=['CUDAExecutionProvider', 'CPUExecutionProvider'])
+    elif 'CPUExecutionProvider' in providers:
+        session = new_session(args.model, providers=['CPUExecutionProvider'])
+    else:
+        raise RuntimeError(f'onnxruntime 未提供可用执行 provider：{providers}')
     out = remove(Image.open(args.input), session=session).convert('RGBA')
     os.makedirs(os.path.dirname(os.path.abspath(args.output)), exist_ok=True)
     out.save(args.output)

@@ -1,14 +1,14 @@
-window.__ModuleLoader__.load({ id: 'dsh-rembg-gpu', factory: (require) => {
+window.__ModuleLoader__.load({ id: 'dsh-rembg', factory: (require) => {
   const React = require('react')
   const ROUTE = '/_dsh/rembg-gpu/settings'
   const MIRRORS = [
     ['阿里云 PyPI', 'https://mirrors.aliyun.com/pypi/simple/'],
     ['官方 PyPI', 'https://pypi.org/simple'],
   ]
-  const CSS = '.rg-card{border:1px solid var(--dsw-alias-border-l2);border-radius:12px;background:var(--dsw-alias-bg-layer-3);list-style:none}.rg-head{display:flex;align-items:center;width:100%;gap:12px;padding:14px 16px;color:inherit;background:transparent;border:0;text-align:left;font:inherit;cursor:pointer}.rg-headtext{display:flex;flex-direction:column;gap:4px;flex:1}.rg-title{font-weight:600;font-size:15px}.rg-desc,.rg-hint,.rg-status{display:block;font-size:12px;color:var(--dsw-alias-label-tertiary);margin-top:6px}.rg-body{border-top:1px solid var(--dsw-alias-border-l2);padding:0 16px 12px}.rg-field{display:flex;flex-direction:column;gap:6px;margin-top:14px}.rg-status-row{display:flex;gap:24px}.rg-status-ok{color:#2e9b5f}.rg-status-error{color:#c23b3b}.rg-input{height:34px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:0 10px;background:var(--dsw-alias-bg-layer-3);color:inherit}.rg-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}.rg-button{padding:6px 12px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:transparent;color:inherit;cursor:pointer}.rg-button:disabled{opacity:.5;cursor:default}.rg-primary{background:var(--dsw-alias-label-primary);color:var(--dsw-alias-bg-layer-3)}.rg-danger{background:#c23b3b;border-color:#c23b3b;color:#fff}.rg-model-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:20px}.rg-model{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;border-top:1px solid var(--dsw-alias-border-l2);padding:10px 0;min-width:0}.rg-model-name{font-size:13px}.rg-small{padding:4px 8px;font-size:12px}'
+  const CSS = '.rg-card{border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-layer-3);list-style:none;min-width:0}.rg-head{display:flex;align-items:center;width:100%;gap:12px;padding:14px 16px;color:inherit;background:transparent;border:0;text-align:left;font:inherit;cursor:pointer}.rg-headtext{display:flex;flex-direction:column;gap:4px;flex:1;min-width:0}.rg-title{font-weight:600;font-size:15px}.rg-desc,.rg-hint,.rg-status{display:block;font-size:12px;color:var(--dsw-alias-label-tertiary);margin-top:6px;overflow-wrap:anywhere}.rg-body{border-top:1px solid var(--dsw-alias-border-l2);padding:0 16px 12px}.rg-field{display:flex;flex-direction:column;gap:6px;margin-top:14px}.rg-status-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 24px}.rg-status-ok{color:#2e9b5f}.rg-status-error{color:#c23b3b}.rg-input{box-sizing:border-box;width:100%;height:34px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:0 10px;background:var(--dsw-alias-bg-layer-3);color:inherit}.rg-actions{display:flex;align-items:center;justify-content:flex-end;gap:12px;margin-top:16px;min-width:0}.rg-init-options{display:flex;align-items:center;gap:10px}.rg-check{display:flex;align-items:center;gap:7px;font-size:13px;white-space:nowrap}.rg-check input{margin:0}.rg-action-message{flex:1;min-width:0;margin-top:0}.rg-button{flex:none;padding:6px 12px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:transparent;color:inherit;cursor:pointer;white-space:nowrap}.rg-button:disabled{opacity:.5;cursor:default}.rg-primary{background:var(--dsw-alias-label-primary);color:var(--dsw-alias-bg-layer-3)}.rg-danger{background:#c23b3b;border-color:#c23b3b;color:#fff}.rg-model-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:20px}.rg-model{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;border-top:1px solid var(--dsw-alias-border-l2);padding:10px 0;min-width:0}.rg-model-name{display:block;font-size:13px;overflow-wrap:anywhere}.rg-small{padding:4px 8px;font-size:12px}@media(max-width:640px){.rg-status-row,.rg-model-list{grid-template-columns:1fr}.rg-actions{align-items:flex-end;flex-wrap:wrap}.rg-action-message{flex-basis:100%}.rg-body{padding-left:12px;padding-right:12px}}'
 
   function store() {
-    let snapshot = { status: 'loading', writable: false, settings: { value: {}, base: {}, revision: 0 }, installation: { status: 'not-installed' }, gpu: { ok: false, reason: '' }, models: [] }
+    let snapshot = { status: 'loading', writable: false, settings: { value: {}, base: {}, revision: 0 }, installation: { status: 'not-installed', mode: null }, gpu: { ok: false, reason: '' }, models: [] }
     const listeners = new Set()
     const notify = () => listeners.forEach(listener => listener())
     const patch = (value) => { snapshot = value; notify() }
@@ -65,7 +65,9 @@ window.__ModuleLoader__.load({ id: 'dsh-rembg-gpu', factory: (require) => {
     }, [state.installation.status])
     const value = state.settings.value || {}
     const mirror = MIRRORS.find(item => item[1] === value.pipIndexUrl) || MIRRORS[0]
+    const useGpu = value.useGpu === true
     const initializing = state.installation.status === 'installing'
+    const modeLabel = state.installation.mode === 'gpu' ? 'GPU' : state.installation.mode === 'cpu' ? 'CPU' : '未初始化'
     const action = async (request, pending) => {
       setMessage(pending)
       try { await request(); setMessage('操作完成') } catch (error) { setMessage(error.message) }
@@ -73,8 +75,8 @@ window.__ModuleLoader__.load({ id: 'dsh-rembg-gpu', factory: (require) => {
     return React.createElement('li', { className: 'rg-card' },
       React.createElement('button', { className: 'rg-head', onClick: () => setOpen(!open), 'aria-expanded': open },
         React.createElement('span', { className: 'rg-headtext' },
-          React.createElement('span', { className: 'rg-title' }, 'rembg GPU 图像背景移除'),
-          React.createElement('span', { className: 'rg-desc' }, '初始化只安装 Python GPU 依赖，模型需单独管理。')),
+          React.createElement('span', { className: 'rg-title' }, 'rembg 图像背景移除'),
+          React.createElement('span', { className: 'rg-desc' }, '可选择 CPU 或 GPU 模式初始化，模型需单独管理。')),
         open ? '⌃' : '⌄'),
       open && React.createElement('div', { className: 'rg-body' },
         React.createElement('div', { className: 'rg-field' },
@@ -87,21 +89,25 @@ window.__ModuleLoader__.load({ id: 'dsh-rembg-gpu', factory: (require) => {
             React.createElement('span', { className: `rg-status ${state.gpu.ok ? 'rg-status-ok' : 'rg-status-error'}` }, state.gpu.ok ? '满足要求' : `不满足要求：${state.gpu.reason || '正在检测…'}`)),
           React.createElement('div', null,
             React.createElement('span', { className: 'rg-title' }, 'Python 环境状态'),
-            React.createElement('span', { className: `rg-status ${state.installation.status === 'installed' ? 'rg-status-ok' : 'rg-status-error'}` }, ({ installed: '已安装', 'not-installed': '未安装', installing: '正在安装' }[state.installation.status] || '未安装')))),
+            React.createElement('span', { className: `rg-status ${state.installation.status === 'installed' ? 'rg-status-ok' : 'rg-status-error'}` }, `${({ installed: '已安装', 'not-installed': '未安装', installing: '正在安装' }[state.installation.status] || '未安装')} · ${modeLabel}`))),
         React.createElement('div', { className: 'rg-actions' },
-          React.createElement('span', { className: 'rg-hint' }, message),
-          React.createElement('button', {
-            className: `rg-button${confirmInitialization ? ' rg-danger' : ''}`,
-            disabled: !state.gpu.ok || initializing || !state.writable,
-            onClick: () => {
-              if (state.installation.status === 'installed' && !confirmInitialization) {
-                setConfirmInitialization(true)
-                return
-              }
-              setConfirmInitialization(false)
-              action(controller.init, '正在安装 Python GPU 环境…')
-            },
-          }, initializing ? '正在安装' : confirmInitialization ? '确认初始化' : '初始化环境')),
+          React.createElement('span', { className: 'rg-hint rg-action-message' }, message),
+          React.createElement('div', { className: 'rg-init-options' },
+            React.createElement('label', { className: 'rg-check' },
+              React.createElement('input', { type: 'checkbox', checked: useGpu, disabled: !state.gpu.ok || initializing || !state.writable, onChange: event => action(() => controller.mutate([{ op: 'set', path: ['useGpu'], value: event.target.checked }]), '正在保存运行模式…') }),
+              '使用 GPU'),
+            React.createElement('button', {
+              className: `rg-button${confirmInitialization ? ' rg-danger' : ''}`,
+              disabled: (useGpu && !state.gpu.ok) || initializing || !state.writable,
+              onClick: () => {
+                if (state.installation.status === 'installed' && !confirmInitialization) {
+                  setConfirmInitialization(true)
+                  return
+                }
+                setConfirmInitialization(false)
+                action(controller.init, `正在安装 Python ${useGpu ? 'GPU' : 'CPU'} 环境…`)
+              },
+            }, initializing ? '正在安装' : confirmInitialization ? '确认初始化' : '初始化环境'))),
         React.createElement('div', { className: 'rg-field' },
           React.createElement('span', { className: 'rg-title' }, '模型列表'),
           React.createElement('div', { className: 'rg-model-list' }, state.models.map(model => {
