@@ -1,5 +1,5 @@
 {
-  "name":"dsh-rembg-gpu","version":"0.2.0","type":"module","main":"index.js",
+  "name":"dsh-rembg-gpu","version":"0.2.1","type":"module","main":"index.js",
   "exports":{".":"./index.js","./client":"./client.js","./package.json":"./package.json"},
   "files":["index.js","client.js","model.json","install.sh","rembg_gpu_worker.py","cordis.patch.yml"],
   "description":"DSH GPU rembg plugin with environment checks and setup UI","license":"MIT",
