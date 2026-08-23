@@ -5,7 +5,7 @@ window.__ModuleLoader__.load({ id: 'dsh-rembg-gpu', factory: (require) => {
     ['阿里云 PyPI', 'https://mirrors.aliyun.com/pypi/simple/'],
     ['官方 PyPI', 'https://pypi.org/simple'],
   ]
-  const CSS = '.rg-card{border:1px solid var(--dsw-alias-border-l2);border-radius:12px;background:var(--dsw-alias-bg-layer-3);list-style:none}.rg-head{display:flex;align-items:center;width:100%;gap:12px;padding:14px 16px;color:inherit;background:transparent;border:0;text-align:left;font:inherit;cursor:pointer}.rg-headtext{display:flex;flex-direction:column;gap:4px;flex:1}.rg-title{font-weight:600;font-size:15px}.rg-desc,.rg-hint,.rg-status{display:block;font-size:12px;color:var(--dsw-alias-label-tertiary);margin-top:6px}.rg-body{border-top:1px solid var(--dsw-alias-border-l2);padding:0 16px 12px}.rg-field{display:flex;flex-direction:column;gap:6px;margin-top:14px}.rg-input{height:34px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:0 10px;background:var(--dsw-alias-bg-layer-3);color:inherit}.rg-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}.rg-button{padding:6px 12px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:transparent;color:inherit;cursor:pointer}.rg-button:disabled{opacity:.5;cursor:default}.rg-primary{background:var(--dsw-alias-label-primary);color:var(--dsw-alias-bg-layer-3)}.rg-model{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;border-top:1px solid var(--dsw-alias-border-l2);padding:10px 0}.rg-model-name{font-size:13px}.rg-small{padding:4px 8px;font-size:12px}'
+  const CSS = '.rg-card{border:1px solid var(--dsw-alias-border-l2);border-radius:12px;background:var(--dsw-alias-bg-layer-3);list-style:none}.rg-head{display:flex;align-items:center;width:100%;gap:12px;padding:14px 16px;color:inherit;background:transparent;border:0;text-align:left;font:inherit;cursor:pointer}.rg-headtext{display:flex;flex-direction:column;gap:4px;flex:1}.rg-title{font-weight:600;font-size:15px}.rg-desc,.rg-hint,.rg-status{display:block;font-size:12px;color:var(--dsw-alias-label-tertiary);margin-top:6px}.rg-body{border-top:1px solid var(--dsw-alias-border-l2);padding:0 16px 12px}.rg-field{display:flex;flex-direction:column;gap:6px;margin-top:14px}.rg-input{height:34px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:0 10px;background:var(--dsw-alias-bg-layer-3);color:inherit}.rg-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}.rg-button{padding:6px 12px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:transparent;color:inherit;cursor:pointer}.rg-button:disabled{opacity:.5;cursor:default}.rg-primary{background:var(--dsw-alias-label-primary);color:var(--dsw-alias-bg-layer-3)}.rg-danger{background:#c23b3b;border-color:#c23b3b;color:#fff}.rg-model-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:20px}.rg-model{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;border-top:1px solid var(--dsw-alias-border-l2);padding:10px 0;min-width:0}.rg-model-name{font-size:13px}.rg-small{padding:4px 8px;font-size:12px}'
 
   function store() {
     let snapshot = { status: 'loading', writable: false, settings: { value: {}, base: {}, revision: 0 }, installation: { status: 'not-installed' }, gpu: { ok: false, reason: '' }, models: [] }
@@ -53,7 +53,11 @@ window.__ModuleLoader__.load({ id: 'dsh-rembg-gpu', factory: (require) => {
     const state = React.useSyncExternalStore(controller.sub, controller.get, controller.get)
     const [open, setOpen] = React.useState(false)
     const [message, setMessage] = React.useState('')
+    const [confirmInitialization, setConfirmInitialization] = React.useState(false)
     React.useEffect(() => { controller.load().catch(error => setMessage(error.message)) }, [])
+    React.useEffect(() => {
+      if (state.installation.status !== 'installed') setConfirmInitialization(false)
+    }, [state.installation.status])
     const value = state.settings.value || {}
     const mirror = MIRRORS.find(item => item[1] === value.pipIndexUrl) || MIRRORS[0]
     const initializing = state.installation.status === 'installing'
@@ -80,10 +84,21 @@ window.__ModuleLoader__.load({ id: 'dsh-rembg-gpu', factory: (require) => {
           React.createElement('span', { className: 'rg-status' }, ({ installed: '已安装', 'not-installed': '未安装', installing: '正在安装' }[state.installation.status] || '未安装'))),
         React.createElement('div', { className: 'rg-actions' },
           React.createElement('span', { className: 'rg-hint' }, message),
-          React.createElement('button', { className: 'rg-button', disabled: !state.gpu.ok || initializing || !state.writable, onClick: () => action(controller.init, '正在安装 Python GPU 环境…') }, initializing ? '正在安装' : '初始化环境')),
+          React.createElement('button', {
+            className: `rg-button${confirmInitialization ? ' rg-danger' : ''}`,
+            disabled: !state.gpu.ok || initializing || !state.writable,
+            onClick: () => {
+              if (state.installation.status === 'installed' && !confirmInitialization) {
+                setConfirmInitialization(true)
+                return
+              }
+              setConfirmInitialization(false)
+              action(controller.init, '正在安装 Python GPU 环境…')
+            },
+          }, initializing ? '正在安装' : confirmInitialization ? '确认初始化' : '初始化环境')),
         React.createElement('div', { className: 'rg-field' },
           React.createElement('span', { className: 'rg-title' }, '模型列表'),
-          state.models.map(model => {
+          React.createElement('div', { className: 'rg-model-list' }, state.models.map(model => {
             const downloading = model.status === 'installing'
             const installed = model.status === 'installed'
             const label = installed ? '已安装' : downloading ? '下载中' : model.status === 'invalid' ? '校验无效' : '未安装'
@@ -94,7 +109,7 @@ window.__ModuleLoader__.load({ id: 'dsh-rembg-gpu', factory: (require) => {
               installed
                 ? React.createElement('button', { className: 'rg-button rg-small', disabled: !state.writable || downloading, onClick: () => action(() => controller.remove(model.id), '正在删除模型…') }, '删除')
                 : React.createElement('button', { className: 'rg-button rg-small', disabled: !state.writable || downloading, onClick: () => action(() => controller.install(model.id), '正在下载模型…') }, downloading ? '下载中' : '安装'))
-          }))))
+          })))))
   }
 
   function apply(ctx) {
