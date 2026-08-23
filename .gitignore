@@ -1,0 +1,6 @@
+.venv/
+.pip-cache/
+.u2net/
+logs/
+__pycache__/
+*.py[cod]

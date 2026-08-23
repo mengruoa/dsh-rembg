@@ -2,12 +2,12 @@
 
 在 DSH 里给大模型注册一个 `rembg_gpu` 工具：输入一张图片路径，使用本地 NVIDIA GPU 输出透明背景 PNG。
 
-首次调用工具时，插件会在**自己的目录**内自动安装 rembg + onnxruntime-gpu 环境（等价于 `install.sh` 做的事）：
+首次调用工具时，插件会在**自己的目录**内自动安装 rembg + onnxruntime-gpu 环境（等价于 `install.sh` 做的事），但不会下载模型。模型由设置页面单独安装。
 
 ```
 rembg-gpu-plugin/
 ├── .venv/                  # Python 虚拟环境（rembg + onnxruntime-gpu）
-├── .u2net/                 # u2net.onnx 模型（MD5 校验）
+├── .u2net/                 # 按模型分目录保存的 ONNX 文件（SHA256 校验）
 ├── .pip-cache/             # pip 下载缓存（不写 ~/.cache/pip）
 ├── logs/install.log        # 安装日志
 ├── install.sh              # 幂等安装脚本（可手动预装：bash install.sh）
@@ -89,7 +89,7 @@ pnpm dsh web --patch ./cordis.patch.dev.yml
 
 ## 二、设置页面
 
-打开 Web GUI 的**设置 → 插件 → 插件配置 → rembg GPU 图像背景移除**，可以选择 PyPI/GitHub 镜像源，查看当前安装状态（已安装、未安装、正在安装），并点击**初始化环境**。初始化会在 `installDir` 内执行幂等的 `install.sh`，不会写入全局 Python 环境；之后工具调用直接复用该环境。
+打开 Web GUI 的**设置 → 插件 → 插件配置 → rembg GPU 图像背景移除**，可以在阿里云 PyPI 和官方 PyPI 之间选择，查看当前安装状态（已安装、未安装、正在安装），并点击**初始化环境**。初始化只安装 Python GPU 依赖，不下载模型。模型列表支持逐项安装和删除，下载完成后按 SHA256 校验。
 
 页面显示：
 - GPU 环境是否满足要求
@@ -98,24 +98,37 @@ pnpm dsh web --patch ./cordis.patch.dev.yml
 
 设置页保存的镜像源会同时影响 pip 依赖与 u2net 模型下载。
 
-### 参数配置
+### 模型列表与下载源
+
+设置页面提供官方 `rembg` 模型列表：`u2net`、`u2netp`、`u2net_cloth_seg`、`u2net_human_seg`、`isnet-anime`、`isnet-general-use`、`silueta`。每个模型可单独安装或删除；模型文件保存为 `.u2net/models/<model>/<model>.onnx`，下载到临时文件后以 SHA256 校验，校验失败不会替换已有文件。
+
+上述七个模型支持 HF 镜像：
+
+```text
+https://hf-mirror.com/tomjackson2023/rembg/resolve/main/{modelname}.onnx?download=true
+```
+
+其他模型（如果后续加入清单）使用 rembg 官方 GitHub release 地址。未安装或校验无效的模型不能调用。
+
+工具会额外注册 `rembg_gpu_models`，AI 应先调用它获取已安装且 SHA256 有效的模型列表，再调用 `rembg_gpu`。抠图成功结果只返回输出文件信息，不再携带 `installed_models`。
+
+本地实测 `u2netp` HF 下载 SHA256：
+
+```text
+309c8469258dda742793dce0ebea8e6dd393174f89934733ecc8b14c76f4ddd8
+```
+
 
 | 字段 | 默认 | 说明 |
 |------|------|------|
-| `model` | `u2net` | 默认模型；调用时可用参数覆盖 |
-| `timeoutMs` | `600000` | 单次调用（含首次安装）超时 |
+| `pipIndexUrl` | `https://mirrors.aliyun.com/pypi/simple/` | 仅允许阿里云或官方 PyPI |
+| `model` | `u2net` | 默认模型；调用时可用参数覆盖，模型必须已安装 |
 | `autoInstall` | `true` | 首次调用自动安装；`false` 则需先手动 `bash install.sh` |
 
-### 镜像源（国内加速）
+### pip 镜像源
 
-`install.sh` 默认已走国内镜像，全部可用环境变量覆盖，留空则回退官方源：
+设置页面只提供阿里云和官方 PyPI 两个选项。初始化不会下载模型；模型下载源由模型管理逻辑选择，七个指定模型优先支持 HF 镜像。
 
-| 变量 | 默认 | 说明 |
-|------|------|------|
-| `PIP_INDEX_URL` | `https://pypi.tuna.tsinghua.edu.cn/simple` | pip 下载源；备选：阿里云 `https://mirrors.aliyun.com/pypi/simple/`、中科大 `https://pypi.mirrors.ustc.edu.cn/simple/` |
-| `GH_MIRROR` | `https://ghfast.top/` | GitHub 下载加速前缀；备选 `https://gh-proxy.com/`、`https://ghproxy.net/`；留空 = 直连 GitHub |
-
-手动预装时同样生效：`bash install.sh`。
 
 ## 三、工具契约
 
