@@ -50,9 +50,58 @@
   },
   {
     "id": "birefnet-general",
-    "label": "BiRefNet-ONNX",
+    "label": "BiRefNet通用",
     "size":972666916,
     "sha256": "58f621f00f5d756097615970a88a791584600dcf7c45b18a0a6267535a1ebd3c",
     "downloadUrl": "https://hf-mirror.com/onnx-community/BiRefNet-ONNX/resolve/main/onnx/model.onnx?download=true"
+  },
+  {
+    "id": "birefnet-general-lite",
+    "label": "BiRefNet通用轻量",
+    "size":224005088,
+    "sha256": "5600024376f572a557870a5eb0afb1e5961636bef4e1e22132025467d0f03333",
+    "downloadUrl": "https://hf-mirror.com/onnx-community/BiRefNet_lite-ONNX/resolve/main/onnx/model.onnx?download=true"
+  },
+  {
+    "id": "birefnet-portrait",
+    "label": "BiRefNet通用人像",
+    "size":972666916,
+    "sha256": "1ba1c8ff5a7bbfadc8d8d13fb11d7be793f91f23d9d466549e37a854f6668f99",
+    "downloadUrl": "https://hf-mirror.com/onnx-community/BiRefNet-portrait-ONNX/resolve/main/onnx/model.onnx?download=true"
+  },
+  {
+    "id": "birefnet-dis",
+    "label": "二值图像分割",
+    "size":972666916,
+    "sha256": "6470117bac6f8d82a3f62921056f52d0f5c4d36d1d832096331d5ea38a03acb5",
+    "downloadUrl": "https://hf-mirror.com/onnx-community/BiRefNet-DIS5K-ONNX/resolve/main/onnx/model.onnx?download=true"
+  },
+  {
+    "id": "birefnet-hrsod",
+    "label": "高分辨率显著物体检测",
+    "size":972666916,
+    "sha256": "4f5837663194fb88f603b76782eae05a3c29f5749872ca1bfb636bd26e7f6bfc",
+    "downloadUrl": "https://hf-mirror.com/onnx-community/BiRefNet-HRSOD_DHU-ONNX/resolve/main/onnx/model.onnx?download=true"
+  },
+  {
+    "id": "birefnet-cod",
+    "label": "隐匿物体检测",
+    "size":972666916,
+    "sha256": "91ec48f566db475cf6e4caa7e9cd997f352edfcc372372f437e2fbefc1557b13",
+    "downloadUrl": "https://hf-mirror.com/onnx-community/BiRefNet-COD-ONNX/resolve/main/onnx/model.onnx?download=true"
+  },
+  {
+    "id": "birefnet-massive",
+    "label": "基于大规模数据集训练",
+    "size":972666916,
+    "sha256": "a94814cac438a31f95287811882628644a04b22d313ef3071d2ba904b5f627b8",
+    "downloadUrl": "https://hf-mirror.com/onnx-community/BiRefNet-DIS5K-TR_TEs-ONNX/resolve/main/onnx/model.onnx?download=true"
+  },
+  {
+    "id": "bria-rmbg",
+    "label": "BRIA AI 的顶级抠图模型",
+    "size":1024331469,
+    "sha256": "5b486f08200f513f460da46dd701db5fbb47d79b4be4b708a19444bcd4e79958",
+    "downloadUrl": "https://hf-mirror.com/kn4666/bria-rmbg-2.0-web/resolve/main/onnx/model.onnx?download=true"
   }
 ]

@@ -38,6 +38,15 @@ export function apply(ctx, config) {
   const settings = ctx.settings.register(REMBG_GPU_SETTINGS_NAMESPACE, Config, { base: config, applies: 'live' })
   let installPromise = null; let installDone = false; let installError = null
   const modelJobs = new Map()
+  function lastLogLine(logPath) {
+    try {
+      const content = readFileSync(logPath, 'utf8')
+      const lines = content.trim().split('\n').filter(Boolean)
+      return lines.length > 0 ? lines[lines.length - 1] : null
+    } catch {
+      return null
+    }
+  }
   const modelControllers = new Map()
   const modelProgress = new Map()
 
@@ -163,7 +172,7 @@ export function apply(ctx, config) {
     })().catch(error => { installError = error.message; throw error }).finally(() => { installPromise = null })
     return installPromise
   }
-  function snapshot(webCtx) { const descriptor = webCtx.settings.describe().find(row => row.ns === REMBG_GPU_SETTINGS_NAMESPACE); const mode = installedMode(); return { writable: webCtx.settings.writable, installation: { status: installStatus(), mode, error: installError }, settings: { value: descriptor?.value ?? {}, revision: descriptor?.revision ?? 0, ...(descriptor?.base === undefined ? {} : { base: descriptor.base }), ...(descriptor?.user === undefined ? {} : { user: descriptor.user }) } } }
+  function snapshot(webCtx) { const descriptor = webCtx.settings.describe().find(row => row.ns === REMBG_GPU_SETTINGS_NAMESPACE); const mode = installedMode(); const status = installStatus(); const logPath = join(root, 'logs', settings.get().useGpu ? 'install.log' : 'install-cpu.log'); const installLog = status === 'installing' ? lastLogLine(logPath) : null; return { writable: webCtx.settings.writable, installation: { status, mode, error: installError, installLog }, settings: { value: descriptor?.value ?? {}, revision: descriptor?.revision ?? 0, ...(descriptor?.base === undefined ? {} : { base: descriptor.base }), ...(descriptor?.user === undefined ? {} : { user: descriptor.user }) } } }
   function json(res, status, value) { const body = JSON.stringify(value); res.writeHead(status, { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }); res.end(body) }
   function body(req) { return new Promise((resolve, reject) => { const chunks = []; req.on('data', x => chunks.push(x)); req.on('end', () => resolve(Buffer.concat(chunks).toString())); req.on('error', reject) }) }
   async function route(webCtx, req, res) { try {
