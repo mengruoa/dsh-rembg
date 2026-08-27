@@ -1,4 +1,4 @@
-import { createReadStream, createWriteStream, existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { createReadStream, createWriteStream, existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { mkdir, rm, stat } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
@@ -20,7 +20,7 @@ export const Config = Schema.object({
   timeoutMs: Schema.number().default(900000),
   pipIndexUrl: Schema.string().default('https://mirrors.aliyun.com/pypi/simple/'),
   autoInstall: Schema.boolean().default(true),
-  useGpu: Schema.boolean().default(false),
+  useGpu: Schema.boolean().default(true),
 })
 const PLUGIN_DIR = dirname(fileURLToPath(import.meta.url))
 const MODEL_CATALOG_PATH = join(PLUGIN_DIR, 'model.json')
@@ -62,6 +62,8 @@ export function apply(ctx, config) {
     })
   }
   async function gpuCheck() { try { const result = await run('nvidia-smi', ['-L'], 10000); return result.stdout.trim() ? { ok: true, reason: result.stdout.trim() } : { ok: false, reason: 'nvidia-smi 未列出可用 GPU。' } } catch (error) { return { ok: false, reason: `无法运行 nvidia-smi：${error.message}` } } }
+  function getNvidiaLibPaths(base) { try { const sitePackages = join(base, '.venv', 'lib'); const pythonDirs = readdirSync(sitePackages).filter(d => d.startsWith('python')); if (pythonDirs.length === 0) return []; const nvidiaDir = join(sitePackages, pythonDirs[0], 'site-packages', 'nvidia'); if (!existsSync(nvidiaDir)) return []; return readdirSync(nvidiaDir).map(d => join(nvidiaDir, d, 'lib')).filter(d => { try { return existsSync(d) } catch { return false } }) } catch { return [] } }
+  function pythonEnv(base) { const env = { ...process.env }; const nvidiaLibs = getNvidiaLibPaths(base); if (nvidiaLibs.length > 0) env.LD_LIBRARY_PATH = nvidiaLibs.join(':') + (process.env.LD_LIBRARY_PATH ? ':' + process.env.LD_LIBRARY_PATH : ''); return env }
   async function sha256(path) {
     const hash = createHash('sha256')
     return new Promise((resolve, reject) => {
@@ -205,6 +207,6 @@ export function apply(ctx, config) {
     description: 'Remove an image background with local rembg. Call rembg_models first to see installed models.',
     parameters: { path: { type: 'string', required: true, description: 'Absolute input image path.' }, model: { type: 'string', description: 'Installed rembg model name; omit to use the configured default.' } },
     output: { schema: { type: 'object', additionalProperties: false, properties: { output: { type: 'string', required: true }, input: { type: 'string', required: true }, model: { type: 'string', required: true }, width: { type: 'number' }, height: { type: 'number' } } }, render: (_args, value) => [{ type: 'text', text: `图片背景已移除：${value.output}（模型 ${value.model}）` }] },
-    async execute(args, exec) { const current = settings.get(); if (current.autoInstall) await ensureInstalled(current); const model = args.model || current.model; const available = await models(); if (!available.some(item => item.id === model && item.status === 'installed')) throw new Error(`模型 ${model} 未安装或校验无效。请先调用 rembg_models 查看已安装模型。`); const input = typeof args.path === 'string' && args.path.trim() ? args.path : typeof args.image_path === 'string' && args.image_path.trim() ? args.image_path : null; if (!input) throw new Error('缺少输入图片路径：请提供绝对路径参数 path。'); const workspace = exec.agent?.session.header.cwd || process.cwd(); const outputDir = join(workspace, '.rembg-tmp'); await mkdir(outputDir, { recursive: true }); const output = join(outputDir, `${randomUUID()}.png`); const result = await run(python, [worker, '--input', input, '--output', output, '--model', model, ...(current.useGpu ? [] : ['--cpu'])], current.timeoutMs || config.timeoutMs, process.env, exec.signal); for (const line of result.stdout.split('\n').reverse()) { try { const value = JSON.parse(line); if (value.output) return value } catch {} } throw new Error('无法解析rembg 输出') },
+    async execute(args, exec) { const current = settings.get(); if (current.autoInstall) await ensureInstalled(current); const model = args.model || current.model; const available = await models(); if (!available.some(item => item.id === model && item.status === 'installed')) throw new Error(`模型 ${model} 未安装或校验无效。请先调用 rembg_models 查看已安装模型。`); const input = typeof args.path === 'string' && args.path.trim() ? args.path : typeof args.image_path === 'string' && args.image_path.trim() ? args.image_path : null; if (!input) throw new Error('缺少输入图片路径：请提供绝对路径参数 path。'); const workspace = exec.agent?.session.header.cwd || process.cwd(); const outputDir = join(workspace, '.rembg-tmp'); await mkdir(outputDir, { recursive: true }); const output = join(outputDir, `${randomUUID()}.png`); const result = await run(python, [worker, '--input', input, '--output', output, '--model', model, ...(current.useGpu ? [] : ['--cpu'])], current.timeoutMs || config.timeoutMs, pythonEnv(root), exec.signal); for (const line of result.stdout.split('\n').reverse()) { try { const value = JSON.parse(line); if (value.output) return value } catch {} } throw new Error('无法解析rembg 输出') },
   }))
 }
