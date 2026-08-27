@@ -1,5 +1,5 @@
 {
-  "name":"dsh-rembg","version":"0.1.6","type":"module","main":"index.js",
+  "name":"dsh-rembg","version":"0.1.7","type":"module","main":"index.js",
   "exports":{".":"./index.js","./client":"./client.js","./package.json":"./package.json"},
   "files":["index.js","client.js","model.json","install.sh","install-cpu.sh","rembg_gpu_worker.py","cordis.patch.yml"],
   "description":"DSH rembg plugin with CPU/GPU background removal and setup UI","license":"MIT",

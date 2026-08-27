@@ -1,4 +1,6 @@
+.python3.11/
 .venv/
+.venv-gpu/
 .pip-cache/
 .u2net/
 logs/

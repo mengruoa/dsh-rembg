@@ -2,6 +2,12 @@
 set -Eeuo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT_DIR"
+PYTHON311_DIR="$ROOT_DIR/.python3.11"
+PYTHON311="$PYTHON311_DIR/bin/python3"
+PYTHON311_VERSION="3.11.16"
+PYTHON311_RELEASE="20260825"
+PYTHON311_TGZ="cpython-${PYTHON311_VERSION}+${PYTHON311_RELEASE}-x86_64-unknown-linux-gnu-install_only.tar.gz"
+PYTHON311_URL="https://gh-proxy.com/https://github.com/astral-sh/python-build-standalone/releases/download/${PYTHON311_RELEASE}/${PYTHON311_TGZ}"
 export PIP_CACHE_DIR="$ROOT_DIR/.pip-cache"
 export PIP_DISABLE_PIP_VERSION_CHECK=1
 export PYTHONNOUSERSITE=1
@@ -28,9 +34,24 @@ is_ready() {
 if is_ready; then log "GPU Python 环境已就绪，跳过安装"; exit 0; fi
 command -v nvidia-smi >/dev/null 2>&1 || { log "未找到 nvidia-smi，无法安装 GPU 环境"; exit 2; }
 nvidia-smi -L | tee -a "$LOG_FILE"
+if [ ! -x "$PYTHON311" ]; then
+  log "下载独立 Python ${PYTHON311_VERSION} ..."
+  PYTHON_TGZ_PATH="$ROOT_DIR/python3.11.tar.gz"
+  if command -v curl >/dev/null 2>&1; then
+    curl -fL -o "$PYTHON_TGZ_PATH" "$PYTHON311_URL"
+  elif command -v wget >/dev/null 2>&1; then
+    wget -O "$PYTHON_TGZ_PATH" "$PYTHON311_URL"
+  else
+    log "未找到 curl 或 wget，无法下载独立 Python"; exit 2
+  fi
+  mkdir -p "$PYTHON311_DIR"
+  tar xzf "$PYTHON_TGZ_PATH" -C "$PYTHON311_DIR" --strip-components=1
+  rm -f "$PYTHON_TGZ_PATH"
+  log "独立 Python ${PYTHON311_VERSION} 就绪"
+fi
 log "清理旧 Python 环境"
 rm -rf "$VENV_DIR"
-python3 -m venv "$VENV_DIR"
+"$PYTHON311" -m venv "$VENV_DIR"
 PY="$VENV_DIR/bin/python"
 PIP="$VENV_DIR/bin/pip"
 "$PY" -m pip install --upgrade pip >>"$LOG_FILE" 2>&1
