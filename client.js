@@ -65,9 +65,22 @@ window.__ModuleLoader__.load({ id: 'dsh-rembg', factory: (require) => {
     const [message, setMessage] = React.useState('')
     const [confirmInitialization, setConfirmInitialization] = React.useState(false)
     React.useEffect(() => {
-      controller.load().catch(error => setMessage(error.message))
-      const timer = setInterval(() => controller.load().catch(() => {}), 500)
-      return () => clearInterval(timer)
+      let cancelled = false
+      let timer = null
+      const tick = async () => {
+        if (cancelled) return
+        try {
+          await controller.load()
+        } catch (error) {
+          if (!cancelled) setMessage(error.message)
+        }
+        if (cancelled) return
+        const snapshot = controller.get()
+        const busy = snapshot.installation.status === 'installing' || snapshot.models.some(model => model.status === 'installing')
+        timer = setTimeout(tick, busy ? 500 : 5000)
+      }
+      tick()
+      return () => { cancelled = true; if (timer) clearTimeout(timer) }
     }, [])
     React.useEffect(() => {
       if (state.installation.status !== 'installed') setConfirmInitialization(false)

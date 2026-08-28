@@ -49,6 +49,8 @@ export function apply(ctx, config) {
   }
   const modelControllers = new Map()
   const modelProgress = new Map()
+  const modelHashCache = new Map()
+  const modelHashInflight = new Map()
 
   function run(cmd, args, timeoutMs, env = process.env, signal) {
     return new Promise((resolve, reject) => {
@@ -73,6 +75,17 @@ export function apply(ctx, config) {
       stream.on('error', reject)
     })
   }
+  async function sha256Cached(path, info) {
+    const cached = modelHashCache.get(path)
+    if (cached && cached.size === info.size && cached.mtimeMs === info.mtimeMs) return cached.sha256
+    if (modelHashInflight.has(path)) return modelHashInflight.get(path)
+    const promise = sha256(path).then(actual => {
+      modelHashCache.set(path, { size: info.size, mtimeMs: info.mtimeMs, sha256: actual })
+      return actual
+    }).finally(() => { modelHashInflight.delete(path) })
+    modelHashInflight.set(path, promise)
+    return promise
+  }
   function modelPath(id) {
     return join(root, '.u2net', 'models', id, `${id}.onnx`)
   }
@@ -81,8 +94,9 @@ export function apply(ctx, config) {
     if (modelJobs.has(model.id)) return { ...model, status: 'installing', progress: modelProgress.get(model.id) || null }
     if (!existsSync(path)) return { ...model, status: 'not-installed' }
     try {
-      const actual = await sha256(path)
-      return { ...model, status: actual === model.sha256 ? 'installed' : 'invalid', size: (await stat(path)).size }
+      const info = await stat(path)
+      const actual = await sha256Cached(path, info)
+      return { ...model, status: actual === model.sha256 ? 'installed' : 'invalid', size: info.size }
     } catch {
       return { ...model, status: 'invalid' }
     }
@@ -140,6 +154,7 @@ export function apply(ctx, config) {
       await rm(target, { force: true })
       const { rename } = await import('node:fs/promises')
       await rename(temp, target)
+      modelHashCache.delete(target)
     })().finally(async () => { modelJobs.delete(id); modelControllers.delete(id); modelProgress.delete(id); await rm(`${modelPath(id)}.part`, { force: true }) })
     modelJobs.set(id, job)
     modelControllers.set(id, controller)
@@ -187,7 +202,7 @@ export function apply(ctx, config) {
     else if (data.action === 'initialize') await ensureInstalled(settings.get())
     else if (data.action === 'install-model') { installModel(data.model).catch(() => {}) }
     else if (data.action === 'stop-model') stopModel(data.model)
-    else if (data.action === 'delete-model') { const model = MODEL_MAP.get(data.model); if (!model) throw new Error('不支持的模型'); await rm(modelPath(model.id), { force: true }) }
+    else if (data.action === 'delete-model') { const model = MODEL_MAP.get(data.model); if (!model) throw new Error('不支持的模型'); const delPath = modelPath(model.id); await rm(delPath, { force: true }); modelHashCache.delete(delPath) }
     else throw new Error('unknown action')
     return json(res, 200, { ok: true, value: { ...snapshot(webCtx), gpu: await gpuCheck(), models: await models() } })
   } catch (error) { return json(res, 400, { ok: false, error: { message: error.message } }) } }
