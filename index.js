@@ -2,7 +2,7 @@ import { createReadStream, createWriteStream, existsSync, readFileSync, readdirS
 import { createHash } from 'node:crypto'
 import { mkdir, rm, stat } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
-import { finished } from 'node:stream/promises'
+import { pipeline } from 'node:stream/promises'
 import { Readable } from 'node:stream'
 import { spawn } from 'node:child_process'
 import { basename, dirname, join } from 'node:path'
@@ -118,19 +118,22 @@ export function apply(ctx, config) {
       const total = Number(response.headers.get('content-length')) || model.size || 0
       let downloaded = 0
       const startedAt = Date.now()
-      const output = createWriteStream(temp)
       try {
-        for await (const chunk of Readable.fromWeb(response.body)) {
-          if (controller.signal.aborted) throw new Error('下载已停止')
-          output.write(chunk)
-          downloaded += chunk.length
-          const elapsed = Math.max(1, Date.now() - startedAt)
-          modelProgress.set(id, { downloaded, total, speed: downloaded * 1000 / elapsed })
-        }
-        output.end()
-        await finished(output)
+        await pipeline(
+          Readable.fromWeb(response.body),
+          async function* (source) {
+            for await (const chunk of source) {
+              if (controller.signal.aborted) throw new Error('下载已停止')
+              downloaded += chunk.length
+              const elapsed = Math.max(1, Date.now() - startedAt)
+              modelProgress.set(id, { downloaded, total, speed: downloaded * 1000 / elapsed })
+              yield chunk
+            }
+          },
+          createWriteStream(temp)
+        )
       } catch (error) {
-        output.destroy()
+        await rm(temp, { force: true })
         throw error
       }
       const actual = await sha256(temp); if (actual !== model.sha256) { await rm(temp, { force: true }); throw new Error(`${id} SHA256 校验失败`) }
