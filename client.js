@@ -5,7 +5,93 @@ window.__ModuleLoader__.load({ id: 'dsh-rembg', factory: (require) => {
     ['阿里云 PyPI', 'https://mirrors.aliyun.com/pypi/simple/'],
     ['官方 PyPI', 'https://pypi.org/simple'],
   ]
-  const CSS = '.rg-card{border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-layer-3);list-style:none;min-width:0}.rg-head{display:flex;align-items:center;width:100%;gap:12px;padding:14px 16px;color:inherit;background:transparent;border:0;text-align:left;font:inherit;cursor:pointer}.rg-headtext{display:flex;flex-direction:column;gap:4px;flex:1;min-width:0}.rg-title{font-weight:600;font-size:15px}.rg-desc,.rg-hint,.rg-status{display:block;font-size:12px;color:var(--dsw-alias-label-tertiary);margin-top:6px;overflow-wrap:anywhere}.rg-body{border-top:1px solid var(--dsw-alias-border-l2);padding:0 16px 12px}.rg-field{display:flex;flex-direction:column;gap:6px;margin-top:14px}.rg-status-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 24px}.rg-status-ok{color:#2e9b5f}.rg-status-error{color:#c23b3b}.rg-input{box-sizing:border-box;width:100%;height:34px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:0 10px;background:var(--dsw-alias-bg-layer-3);color:inherit}.rg-actions{display:flex;align-items:center;justify-content:flex-end;gap:12px;margin-top:16px;min-width:0}.rg-init-options{display:flex;align-items:center;gap:10px}.rg-check{display:flex;align-items:center;gap:7px;font-size:13px;white-space:nowrap}.rg-check input{margin:0}.rg-action-message{flex:1;min-width:0;margin-top:0}.rg-button{flex:none;padding:6px 12px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:transparent;color:inherit;cursor:pointer;white-space:nowrap}.rg-button:disabled{opacity:.5;cursor:default}.rg-primary{background:var(--dsw-alias-label-primary);color:var(--dsw-alias-bg-layer-3)}.rg-danger{background:#c23b3b;border-color:#c23b3b;color:#fff}.rg-model-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:20px}.rg-model{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;border-top:1px solid var(--dsw-alias-border-l2);padding:10px 0;min-width:0}.rg-model-name{display:block;font-size:13px;overflow-wrap:anywhere}.rg-progress{height:6px;margin-top:8px;border-radius:3px;background:var(--dsw-alias-bg-layer-1);overflow:hidden}.rg-progress-bar{height:100%;background:#2e9b5f;transition:width .2s ease}.rg-download-meta{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--dsw-alias-label-tertiary);margin-top:5px}.rg-small{padding:4px 8px;font-size:12px}.rg-stop{flex:none;width:22px;height:22px;padding:0;border-radius:50%;border:1px solid var(--dsw-alias-border-l2);background:transparent;color:inherit;cursor:pointer;font-size:12px;line-height:1;display:inline-flex;align-items:center;justify-content:center}.rg-stop:hover{border-color:#c23b3b;color:#c23b3b}@media(max-width:640px){.rg-status-row,.rg-model-list{grid-template-columns:1fr}.rg-actions{align-items:flex-end;flex-wrap:wrap}.rg-action-message{flex-basis:100%}.rg-body{padding-left:12px;padding-right:12px}}'
+  const CSS = `
+.rg-card {
+  list-style: none; min-width: 0;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-layer-3);
+  transition: border-color .16s, background .16s;
+}
+.rg-card:hover { border-color: var(--dsw-alias-label-dimmed); }
+.rg-card-open { background: var(--dsw-alias-bg-layer-2); border-color: var(--dsw-alias-label-dimmed); }
+.rg-head {
+  display: flex; align-items: center; width: 100%; gap: 12px; padding: 14px 16px;
+  color: inherit; background: transparent; border: 0; text-align: left; font: inherit;
+  cursor: pointer; border-radius: 12px;
+}
+.rg-head:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: -2px; }
+.rg-headtext { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
+.rg-title { font-weight: 600; font-size: 15px; line-height: 1.4; color: var(--dsw-alias-label-primary); }
+.rg-desc { font-size: 13px; line-height: 1.5; color: var(--dsw-alias-label-tertiary); }
+.rg-chevron { flex: none; color: var(--dsw-alias-label-tertiary); transition: transform .16s; }
+.rg-chevron-open { transform: rotate(180deg); }
+.rg-body { border-top: 1px solid var(--dsw-alias-border-l2); margin: 0 16px; padding: 0 0 12px; }
+.rg-field { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; }
+.rg-hint { display: block; font-size: 12px; line-height: 1.5; color: var(--dsw-alias-label-tertiary); margin-top: 6px; overflow-wrap: anywhere; }
+.rg-status-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 24px; }
+.rg-status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; line-height: 1.5; }
+.rg-status::before { content: ''; width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.rg-status-ok { color: var(--dsw-alias-state-success-primary); }
+.rg-status-ok::before { background: var(--dsw-alias-state-success-primary); }
+.rg-status-error { color: var(--dsw-alias-state-error-primary); }
+.rg-status-error::before { background: var(--dsw-alias-state-error-primary); }
+.rg-input {
+  box-sizing: border-box; width: 100%; height: 34px;
+  border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; padding: 0 10px;
+  background: var(--dsw-alias-bg-layer-3); color: var(--dsw-alias-label-primary);
+  font: inherit; font-size: 13px; transition: border-color .16s;
+}
+.rg-input:hover:not(:disabled) { border-color: var(--dsw-alias-label-dimmed); }
+.rg-input:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 0; }
+.rg-input:disabled { opacity: .5; }
+.rg-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 16px; min-width: 0; }
+.rg-init-options { display: flex; align-items: center; gap: 12px; }
+.rg-action-message { flex: 1; min-width: 0; margin-top: 0; }
+.rg-button {
+  flex: none; appearance: none;
+  padding: 6px 14px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px;
+  background: transparent; color: var(--dsw-alias-label-secondary);
+  font: inherit; font-size: 13px; line-height: 1.5; cursor: pointer; white-space: nowrap;
+  transition: border-color .16s, color .16s, background .16s;
+}
+.rg-button:hover:not(:disabled) { border-color: var(--dsw-alias-label-dimmed); color: var(--dsw-alias-label-primary); }
+.rg-button:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 1px; }
+.rg-button:disabled { opacity: .4; cursor: default; }
+.rg-primary { background: var(--dsw-alias-label-primary); border-color: var(--dsw-alias-label-primary); color: var(--dsw-alias-bg-layer-3); }
+.rg-danger { border-color: var(--dsw-alias-state-error-primary); color: var(--dsw-alias-state-error-primary); }
+.rg-danger:hover:not(:disabled) { background: var(--dsw-alias-interactive-bg-hover-danger); border-color: var(--dsw-alias-state-error-primary); color: var(--dsw-alias-state-error-primary); }
+.rg-small { padding: 3px 10px; font-size: 12px; }
+.rg-stop {
+  flex: none; width: 26px; height: 26px; padding: 0; border-radius: 50%;
+  border: 1px solid var(--dsw-alias-border-l2); background: transparent;
+  color: var(--dsw-alias-label-secondary); cursor: pointer; font-size: 13px; line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: border-color .16s, color .16s;
+}
+.rg-stop:hover { border-color: var(--dsw-alias-state-error-primary); color: var(--dsw-alias-state-error-primary); }
+.rg-stop:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 1px; }
+.rg-model-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 20px; }
+.rg-model { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; border-top: 1px solid var(--dsw-alias-border-l2); padding: 10px 0; min-width: 0; }
+.rg-model-name { display: block; font-size: 13px; color: var(--dsw-alias-label-primary); overflow-wrap: anywhere; }
+.rg-progress { height: 6px; margin-top: 8px; border-radius: 3px; background: var(--dsw-alias-bg-layer-1); overflow: hidden; }
+.rg-progress-bar { height: 100%; background: var(--dsw-alias-state-success-primary); transition: width .2s ease; }
+.rg-download-meta { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--dsw-alias-label-tertiary); margin-top: 5px; }
+.rg-switch { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; user-select: none; white-space: nowrap; }
+.rg-switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.rg-switch-track { position: relative; display: inline-block; box-sizing: border-box; width: 38px; height: 22px; flex: none; border-radius: 999px; background: var(--dsw-alias-bg-layer-1); border: 1px solid var(--dsw-alias-border-l2); transition: background .16s, border-color .16s; }
+.rg-switch-thumb { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--dsw-alias-label-tertiary); transition: transform .16s, background .16s; }
+.rg-switch input:checked + .rg-switch-track { background: var(--dsw-alias-brand-primary); border-color: var(--dsw-alias-brand-primary); }
+.rg-switch input:checked + .rg-switch-track .rg-switch-thumb { transform: translateX(18px); background: #fff; }
+.rg-switch input:focus-visible + .rg-switch-track { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: 2px; }
+.rg-switch input:disabled + .rg-switch-track { opacity: .4; }
+@media (max-width: 640px) {
+  .rg-status-row, .rg-model-list { grid-template-columns: 1fr; }
+  .rg-actions { align-items: flex-end; flex-wrap: wrap; }
+  .rg-action-message { flex-basis: 100%; }
+  .rg-body { margin-left: 12px; margin-right: 12px; }
+}
+`
 
   function store() {
     let snapshot = { status: 'loading', writable: false, settings: { value: {}, base: {}, revision: 0 }, installation: { status: 'not-installed', mode: null }, gpu: { ok: false, reason: '' }, models: [] }
@@ -97,12 +183,14 @@ window.__ModuleLoader__.load({ id: 'dsh-rembg', factory: (require) => {
       setMessage(pending)
       try { await request(); setMessage('操作完成') } catch (error) { setMessage(error.message) }
     }
-    return React.createElement('li', { className: 'rg-card' },
+    const chevron = React.createElement('svg', { className: `rg-chevron${open ? ' rg-chevron-open' : ''}`, width: 16, height: 16, viewBox: '0 0 16 16', fill: 'none', 'aria-hidden': true },
+      React.createElement('path', { d: 'M4 6l4 4 4-4', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round', strokeLinejoin: 'round' }))
+    return React.createElement('li', { className: `rg-card${open ? ' rg-card-open' : ''}` },
       React.createElement('button', { className: 'rg-head', onClick: () => setOpen(!open), 'aria-expanded': open },
         React.createElement('span', { className: 'rg-headtext' },
           React.createElement('span', { className: 'rg-title' }, 'rembg 图像背景移除'),
           React.createElement('span', { className: 'rg-desc' }, '可选择 CPU 或 GPU 模式初始化，模型需单独管理。')),
-        open ? '⌃' : '⌄'),
+        chevron),
       open && React.createElement('div', { className: 'rg-body' },
         React.createElement('div', { className: 'rg-field' },
           React.createElement('label', { className: 'rg-title' }, 'pip 镜像源'),
@@ -119,11 +207,12 @@ window.__ModuleLoader__.load({ id: 'dsh-rembg', factory: (require) => {
         React.createElement('div', { className: 'rg-actions' },
           React.createElement('span', { className: 'rg-hint rg-action-message' }, message),
           React.createElement('div', { className: 'rg-init-options' },
-            React.createElement('label', { className: 'rg-check' },
+            React.createElement('label', { className: 'rg-switch' },
               React.createElement('input', { type: 'checkbox', checked: useGpu, disabled: !state.gpu.ok || initializing || !state.writable, onChange: event => action(() => controller.mutate([{ op: 'set', path: ['useGpu'], value: event.target.checked }]), '正在保存运行模式…') }),
+              React.createElement('span', { className: 'rg-switch-track' }, React.createElement('span', { className: 'rg-switch-thumb' })),
               '使用 GPU'),
             React.createElement('button', {
-              className: `rg-button${confirmInitialization ? ' rg-danger' : ''}`,
+              className: `rg-button${confirmInitialization ? ' rg-danger' : ' rg-primary'}`,
               disabled: (useGpu && !state.gpu.ok) || initializing || !state.writable,
               onClick: () => {
                 if (state.installation.status === 'installed' && !confirmInitialization) {
@@ -145,16 +234,20 @@ window.__ModuleLoader__.load({ id: 'dsh-rembg', factory: (require) => {
           React.createElement('div', { className: 'rg-model-list' }, state.models.map(model => {
             const downloading = model.status === 'installing'
             const installed = model.status === 'installed'
+            const progress = model.progress || {}
+            const total = progress.total || model.size || 0
+            const downloaded = progress.downloaded || 0
+            const percent = total > 0 ? Math.min(100, downloaded / total * 100) : 0
             const label = installed ? '已安装' : downloading ? '下载中' : model.status === 'invalid' ? '校验无效' : '未安装'
             return React.createElement('div', { className: 'rg-model', key: model.id },
               React.createElement('span', null,
                 React.createElement('span', { className: 'rg-model-name' }, model.id),
                 React.createElement('span', { className: 'rg-hint' }, `${model.label} · ${formatSize(model.size)} · ${label}`),
                 downloading && React.createElement(React.Fragment, null,
-                  React.createElement('div', { className: 'rg-progress' }, React.createElement('div', { className: 'rg-progress-bar', style: { width: `${model.progress?.total ? Math.min(100, model.progress.downloaded / model.progress.total * 100) : 0}%` } })),
+                  React.createElement('div', { className: 'rg-progress' }, React.createElement('div', { className: 'rg-progress-bar', style: { width: `${percent}%` } })),
                   React.createElement('div', { className: 'rg-download-meta' },
-                    React.createElement('span', null, `${formatSize(model.progress?.downloaded || 0)} / ${formatSize(model.progress?.total || model.size)}`),
-                    React.createElement('span', null, formatSpeed(model.progress?.speed || 0))))),
+                    React.createElement('span', null, `${percent.toFixed(0)}% · ${formatSize(downloaded)} / ${formatSize(total)}`),
+                    React.createElement('span', null, formatSpeed(progress.speed || 0))))),
               installed
                 ? React.createElement('button', { className: 'rg-button rg-small rg-danger', disabled: !state.writable, onClick: () => action(() => controller.remove(model.id), '正在删除模型…') }, '删除')
                 : downloading
