@@ -74,6 +74,7 @@ window.__ModuleLoader__.load({ id: 'dsh-rembg', factory: (require) => {
 .rg-model-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 20px; }
 .rg-model { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; border-top: 1px solid var(--dsw-alias-border-l2); padding: 10px 0; min-width: 0; }
 .rg-model-name { display: block; font-size: 13px; color: var(--dsw-alias-label-primary); overflow-wrap: anywhere; }
+.rg-error-text { display: block; margin-top: 4px; font-size: 12px; line-height: 1.5; color: var(--dsw-alias-state-error-primary); overflow-wrap: anywhere; }
 .rg-progress { height: 6px; margin-top: 8px; border-radius: 3px; background: var(--dsw-alias-bg-layer-1); overflow: hidden; }
 .rg-progress-bar { height: 100%; background: var(--dsw-alias-state-success-primary); transition: width .2s ease; }
 .rg-download-meta { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--dsw-alias-label-tertiary); margin-top: 5px; }
@@ -196,6 +197,10 @@ window.__ModuleLoader__.load({ id: 'dsh-rembg', factory: (require) => {
           React.createElement('label', { className: 'rg-title' }, 'pip 镜像源'),
           React.createElement('select', { className: 'rg-input', value: mirror[1], disabled: !state.writable || initializing, onChange: event => action(() => controller.mutate([{ op: 'set', path: ['pipIndexUrl'], value: event.target.value }]), '正在保存镜像源…') },
             MIRRORS.map(item => React.createElement('option', { key: item[1], value: item[1] }, item[0])))),
+        React.createElement('div', { className: 'rg-field' },
+          React.createElement('label', { className: 'rg-title' }, '默认模型'),
+          React.createElement('select', { className: 'rg-input', value: value.model || 'u2net', disabled: !state.writable || initializing, onChange: event => action(() => controller.mutate([{ op: 'set', path: ['model'], value: event.target.value }]), '正在保存默认模型…') },
+            state.models.map(model => React.createElement('option', { key: model.id, value: model.id }, `${model.id}${model.status === 'installed' ? '' : '（未安装）'}`)))),
         React.createElement('div', { className: 'rg-field rg-status-row' },
           React.createElement('div', null,
             React.createElement('span', { className: 'rg-title' }, 'GPU 环境'),
@@ -203,7 +208,8 @@ window.__ModuleLoader__.load({ id: 'dsh-rembg', factory: (require) => {
           React.createElement('div', null,
             React.createElement('span', { className: 'rg-title' }, 'Python 环境状态'),
             React.createElement('span', { className: `rg-status ${state.installation.status === 'installed' ? 'rg-status-ok' : 'rg-status-error'}` }, `${({ installed: '已安装', 'not-installed': '未安装', installing: '正在安装' }[state.installation.status] || '未安装')} · ${modeLabel}`),
-            state.installation.status === 'installing' && state.installation.installLog && React.createElement('span', { className: 'rg-hint' }, state.installation.installLog))),
+            state.installation.status === 'installing' && state.installation.installLog && React.createElement('span', { className: 'rg-hint' }, state.installation.installLog),
+            state.installation.error && React.createElement('span', { className: 'rg-error-text' }, state.installation.error))),
         React.createElement('div', { className: 'rg-actions' },
           React.createElement('span', { className: 'rg-hint rg-action-message' }, message),
           React.createElement('div', { className: 'rg-init-options' },
@@ -220,7 +226,8 @@ window.__ModuleLoader__.load({ id: 'dsh-rembg', factory: (require) => {
                   return
                 }
                 setConfirmInitialization(false)
-                action(controller.init, `正在安装 Python ${useGpu ? 'GPU' : 'CPU'} 环境…`)
+                setMessage(`正在安装 Python ${useGpu ? 'GPU' : 'CPU'} 环境…`)
+                controller.init().catch(error => setMessage(error.message))
               },
             }, initializing ? '正在安装' : confirmInitialization ? '确认初始化' : '初始化环境'),
           initializing && React.createElement('button', {
@@ -243,6 +250,7 @@ window.__ModuleLoader__.load({ id: 'dsh-rembg', factory: (require) => {
               React.createElement('span', null,
                 React.createElement('span', { className: 'rg-model-name' }, model.id),
                 React.createElement('span', { className: 'rg-hint' }, `${model.label} · ${formatSize(model.size)} · ${label}`),
+                model.error && React.createElement('span', { className: 'rg-error-text' }, model.error),
                 downloading && React.createElement(React.Fragment, null,
                   React.createElement('div', { className: 'rg-progress' }, React.createElement('div', { className: 'rg-progress-bar', style: { width: `${percent}%` } })),
                   React.createElement('div', { className: 'rg-download-meta' },

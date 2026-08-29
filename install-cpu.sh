@@ -9,6 +9,7 @@ PYTHON311_VERSION="3.11.16"
 PYTHON311_RELEASE="20260825"
 PYTHON311_TGZ="cpython-${PYTHON311_VERSION}+${PYTHON311_RELEASE}-x86_64-unknown-linux-gnu-install_only.tar.gz"
 PYTHON311_URL="https://gh-proxy.com/https://github.com/astral-sh/python-build-standalone/releases/download/${PYTHON311_RELEASE}/${PYTHON311_TGZ}"
+PYTHON311_SHA256="25844eb97cdc72cdc78addaad0969ce3b2133a4de54bfcfa4d57f8a6d095eaab"
 export PIP_CACHE_DIR="$ROOT_DIR/.pip-cache"
 export PIP_DISABLE_PIP_VERSION_CHECK=1
 export PYTHONNOUSERSITE=1
@@ -34,6 +35,13 @@ if [ ! -x "$PYTHON311" ]; then
     wget -O "$PYTHON_TGZ_PATH" "$PYTHON311_URL"
   else
     log "未找到 curl 或 wget，无法下载独立 Python"; exit 2
+  fi
+  # 校验下载的 Python 压缩包 SHA256，防止供应链被篡改
+  if ! command -v sha256sum >/dev/null 2>&1; then
+    log "未找到 sha256sum，无法校验下载的 Python 压缩包"; rm -f "$PYTHON_TGZ_PATH"; exit 2
+  fi
+  if [ "$(sha256sum "$PYTHON_TGZ_PATH" | awk '{print $1}')" != "$PYTHON311_SHA256" ]; then
+    log "Python 压缩包 SHA256 校验失败，已删除下载文件"; rm -f "$PYTHON_TGZ_PATH"; exit 2
   fi
   mkdir -p "$PYTHON311_DIR"
   tar xzf "$PYTHON_TGZ_PATH" -C "$PYTHON311_DIR" --strip-components=1
