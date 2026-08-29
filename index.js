@@ -18,7 +18,7 @@ export const REMBG_GPU_SETTINGS_NAMESPACE = settingsNamespace('rembg-gpu-tool')
 export const Config = Schema.object({
   installDir: Schema.string(),
   model: Schema.string().default('u2net'),
-  timeoutMs: Schema.number().default(900000),
+  timeoutMs: Schema.number().default(7200000),
   pipIndexUrl: Schema.string().default('https://mirrors.aliyun.com/pypi/simple/'),
   autoInstall: Schema.boolean().default(true),
   useGpu: Schema.boolean().default(true),
@@ -36,7 +36,7 @@ export function apply(ctx, config) {
   const cpuInstaller = join(PLUGIN_DIR, 'install-cpu.sh')
   const modeFile = join(dataDir, '.install-mode')
   const settings = ctx.settings.register(REMBG_GPU_SETTINGS_NAMESPACE, Config, { base: config, applies: 'live' })
-  let installPromise = null; let installDone = false; let installError = null
+  let installPromise = null; let installDone = false; let installError = null; let installController = null
   const modelJobs = new Map()
   function lastLogLine(logPath) {
     try {
@@ -54,10 +54,11 @@ export function apply(ctx, config) {
 
   function run(cmd, args, timeoutMs, env = process.env, signal) {
     return new Promise((resolve, reject) => {
-      const child = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'], env }); let stdout = ''; let stderr = ''; let settled = false
-      const timer = setTimeout(() => { child.kill('SIGKILL'); finish(new Error(`${cmd} 超时`)) }, timeoutMs)
+      const child = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'], env, detached: true }); let stdout = ''; let stderr = ''; let settled = false
+      const killTree = sig => { try { process.kill(-child.pid, sig) } catch { try { child.kill(sig) } catch {} } }
+      const timer = setTimeout(() => { killTree('SIGKILL'); finish(new Error(`${cmd} 超时`)) }, timeoutMs)
       const finish = (error, value) => { if (settled) return; settled = true; clearTimeout(timer); signal?.removeEventListener('abort', abort); error ? reject(error) : resolve(value) }
-      const abort = () => { child.kill('SIGTERM'); finish(new Error(`${cmd} 已取消`)) }
+      const abort = () => { killTree('SIGTERM'); finish(new Error(`${cmd} 已取消`)) }
       if (signal) { if (signal.aborted) return abort(); signal.addEventListener('abort', abort, { once: true }) }
       child.stdout.on('data', data => { stdout += data }); child.stderr.on('data', data => { stderr += data }); child.on('error', finish)
       child.on('close', code => code === 0 ? finish(null, { stdout, stderr }) : finish(new Error(`${cmd} 退出码 ${code}：${(stderr || stdout).trim().slice(-500)}`)))
@@ -179,18 +180,25 @@ export function apply(ctx, config) {
       installError = null
     }
     if (installStatus() === 'installed') return
-    if (!installPromise) installPromise = (async () => {
-      installError = null
-      if (mode === 'gpu') {
-        const check = await gpuCheck()
-        if (!check.ok) throw new Error(`GPU 环境不满足，无法初始化：${check.reason}`)
-      }
-      const pipIndexUrl = overrides.pipIndexUrl || 'https://mirrors.aliyun.com/pypi/simple/'
-      if (!['https://mirrors.aliyun.com/pypi/simple/', 'https://pypi.org/simple'].includes(pipIndexUrl)) throw new Error('只允许阿里云或官方 PyPI 镜像')
-      await run('bash', [mode === 'gpu' ? gpuInstaller : cpuInstaller, dataDir], overrides.timeoutMs || config.timeoutMs, { ...process.env, PIP_INDEX_URL: pipIndexUrl })
-      installDone = true
-    })().catch(error => { installError = error.message; throw error }).finally(() => { installPromise = null })
+    if (!installPromise) {
+      installController = new AbortController()
+      installPromise = (async () => {
+        installError = null
+        if (mode === 'gpu') {
+          const check = await gpuCheck()
+          if (!check.ok) throw new Error(`GPU 环境不满足，无法初始化：${check.reason}`)
+        }
+        const pipIndexUrl = overrides.pipIndexUrl || 'https://mirrors.aliyun.com/pypi/simple/'
+        if (!['https://mirrors.aliyun.com/pypi/simple/', 'https://pypi.org/simple'].includes(pipIndexUrl)) throw new Error('只允许阿里云或官方 PyPI 镜像')
+        await run('bash', [mode === 'gpu' ? gpuInstaller : cpuInstaller, dataDir], overrides.timeoutMs || config.timeoutMs, { ...process.env, PIP_INDEX_URL: pipIndexUrl }, installController.signal)
+        installDone = true
+      })().catch(error => { installError = error.message; throw error }).finally(() => { installPromise = null; installController = null })
+    }
     return installPromise
+  }
+  function stopInstall() {
+    if (!installPromise) throw new Error('环境当前没有安装任务')
+    installController?.abort()
   }
   function snapshot(webCtx) { const descriptor = webCtx.settings.describe().find(row => row.ns === REMBG_GPU_SETTINGS_NAMESPACE); const mode = installedMode(); const status = installStatus(); const logPath = join(dataDir, 'logs', settings.get().useGpu ? 'install.log' : 'install-cpu.log'); const installLog = status === 'installing' ? lastLogLine(logPath) : null; return { writable: webCtx.settings.writable, installation: { status, mode, error: installError, installLog }, settings: { value: descriptor?.value ?? {}, revision: descriptor?.revision ?? 0, ...(descriptor?.base === undefined ? {} : { base: descriptor.base }), ...(descriptor?.user === undefined ? {} : { user: descriptor.user }) } } }
   function json(res, status, value) { const body = JSON.stringify(value); res.writeHead(status, { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }); res.end(body) }
@@ -200,6 +208,7 @@ export function apply(ctx, config) {
     if (req.method !== 'POST') return json(res, 405, { ok: false, error: { message: 'method not allowed' } }); const data = JSON.parse(await body(req))
     if (data.action === 'mutate') { if (!webCtx.settings.writable) throw new Error('settings provider is read-only'); await webCtx.settings.mutate(REMBG_GPU_SETTINGS_NAMESPACE, data.ops || [], data.expectedRevision) }
     else if (data.action === 'initialize') await ensureInstalled(settings.get())
+    else if (data.action === 'stop-initialize') stopInstall()
     else if (data.action === 'install-model') { installModel(data.model).catch(() => {}) }
     else if (data.action === 'stop-model') stopModel(data.model)
     else if (data.action === 'delete-model') { const model = MODEL_MAP.get(data.model); if (!model) throw new Error('不支持的模型'); const delPath = modelPath(model.id); await rm(delPath, { force: true }); modelHashCache.delete(delPath) }
