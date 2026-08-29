@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 import argparse, json, os, sys, glob
 ROOT = os.path.dirname(os.path.abspath(__file__))
-os.environ.setdefault('U2NET_HOME', os.path.join(ROOT, '.u2net'))
+# 数据目录：优先用 U2NET_HOME 的父目录（新布局 ~/.dsh/rembg），否则退回脚本目录（兼容旧布局）
+DATA_DIR = os.path.dirname(os.path.expanduser(os.environ['U2NET_HOME'])) if os.environ.get('U2NET_HOME') else ROOT
+os.environ.setdefault('U2NET_HOME', os.path.join(DATA_DIR, '.u2net'))
 os.environ.setdefault('ORT_DISABLE_TELEMETRY', '1')
 # 设置 LD_LIBRARY_PATH 以便 onnxruntime 找到 CUDA 运行时库
-_nvidia_libs = ':'.join(glob.glob(os.path.join(ROOT, '.venv/lib/python*/site-packages/nvidia/*/lib')))
+_nvidia_libs = ':'.join(glob.glob(os.path.join(DATA_DIR, '.venv/lib/python*/site-packages/nvidia/*/lib')))
 if _nvidia_libs:
     os.environ['LD_LIBRARY_PATH'] = _nvidia_libs + ':' + os.environ.get('LD_LIBRARY_PATH', '')
 def main():

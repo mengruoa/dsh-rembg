@@ -47,6 +47,7 @@ window.__ModuleLoader__.load({ id: 'dsh-rembg', factory: (require) => {
         current => ({ ...current, models: current.models.map(model => model.id === id ? { ...model, status: 'not-installed' } : model) }),
         () => post({ action: 'delete-model', model: id }),
       ),
+      clear: () => post({ action: 'clear-environment' }),
     }
   }
 
@@ -64,6 +65,7 @@ window.__ModuleLoader__.load({ id: 'dsh-rembg', factory: (require) => {
     const [open, setOpen] = React.useState(false)
     const [message, setMessage] = React.useState('')
     const [confirmInitialization, setConfirmInitialization] = React.useState(false)
+    const [confirmClear, setConfirmClear] = React.useState(false)
     React.useEffect(() => {
       let cancelled = false
       let timer = null
@@ -151,7 +153,18 @@ window.__ModuleLoader__.load({ id: 'dsh-rembg', factory: (require) => {
                 : downloading
                   ? React.createElement('button', { className: 'rg-button rg-small rg-danger', disabled: !state.writable, onClick: () => action(() => controller.stop(model.id), '正在停止下载…') }, '停止')
                   : React.createElement('button', { className: 'rg-button rg-small', disabled: !state.writable, onClick: () => action(() => controller.install(model.id), '正在下载模型…') }, '安装'))
-          })))))
+          }))),
+        React.createElement('div', { className: 'rg-actions' },
+          React.createElement('span', { className: 'rg-hint rg-action-message' }, '清空环境会删除虚拟环境与所有已下载模型，需重新初始化。'),
+          React.createElement('button', {
+            className: `rg-button${confirmClear ? ' rg-danger' : ''}`,
+            disabled: initializing || !state.writable,
+            onClick: () => {
+              if (!confirmClear) { setConfirmClear(true); return }
+              setConfirmClear(false)
+              action(controller.clear, '正在清空环境…')
+            },
+          }, confirmClear ? '确认清空' : '清空环境'))))
   }
 
   function apply(ctx) {

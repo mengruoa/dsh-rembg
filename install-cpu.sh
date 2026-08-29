@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="${1:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+mkdir -p "$ROOT_DIR"
 cd "$ROOT_DIR"
 PYTHON311_DIR="$ROOT_DIR/.python3.11"
 PYTHON311="$PYTHON311_DIR/bin/python3"
