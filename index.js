@@ -8,13 +8,25 @@ import { spawn } from 'node:child_process'
 import { basename, dirname, join, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { homedir } from 'node:os'
-import { settingsNamespace } from '@deepseek-ai/dsh-settings'
 import Schema from '@deepseek-ai/schemastery'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 
 export const name = 'rembg-gpu-tool'
 export const inject = ['tools', 'settings']
-export const REMBG_GPU_SETTINGS_NAMESPACE = settingsNamespace('rembg-gpu-tool')
+
+/**
+ * The namespace pattern the removed `settingsNamespace` helper enforced.
+ * dsh 0.1.2-alpha dropped that export; importing a missing named export is a
+ * module-evaluation error that stops the host from booting, so the check is
+ * inlined here instead of imported. The namespace is a static string, so no
+ * runtime dependency on `@deepseek-ai/dsh-settings` is needed.
+ */
+const SETTINGS_NAMESPACE_PATTERN = /^[a-z][a-z0-9-]*$/
+export const REMBG_GPU_SETTINGS_NAMESPACE = 'rembg-gpu-tool'
+
+if (!SETTINGS_NAMESPACE_PATTERN.test(REMBG_GPU_SETTINGS_NAMESPACE)) {
+  throw new TypeError(`settings namespace "${REMBG_GPU_SETTINGS_NAMESPACE}" must match ${String(SETTINGS_NAMESPACE_PATTERN)}`)
+}
 export const Config = Schema.object({
   model: Schema.string().default('u2net'),
   timeoutMs: Schema.number().default(7200000),
