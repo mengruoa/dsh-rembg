@@ -24,12 +24,16 @@ dsh --profile web
 
 ## 配置
 
-打开 Web GUI 的**设置 → 插件 → 插件配置 → rembg 图像背景移除**：
+打开 Web GUI 的**侧栏「插件」→ `dsh-rembg` → `rembg` 行**（该行右侧的配置入口）：
 
 1. 选择是否使用 GPU。
 2. 点击**初始化环境**安装对应的 Python 依赖。
 3. 在模型列表中安装要使用的模型。
 4. 选择默认模型并保存设置。
+
+> DSH `0.1.7-rc.1` 起，插件配置页从「设置 → 插件 → 插件配置」迁移到插件页的行配置
+> （`plugins.row.config`，键为 `dsh-rembg#rembg`）。设置值持久化在当前 profile 的
+> `cordis.patch.yml` 中该 `rembg` 行下。
 
 GPU 模式需要 NVIDIA GPU、可用驱动和 `nvidia-smi`；CPU 模式无需 NVIDIA GPU。依赖和模型保存在插件安装目录中，不会修改系统 Python。
 

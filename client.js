@@ -6,27 +6,8 @@ window.__ModuleLoader__.load({ id: 'dsh-rembg', factory: (require) => {
     ['官方 PyPI', 'https://pypi.org/simple'],
   ]
   const CSS = `
-.rg-card {
-  list-style: none; min-width: 0;
-  border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 12px;
-  background: var(--dsw-alias-bg-layer-3);
-  transition: border-color .16s, background .16s;
-}
-.rg-card:hover { border-color: var(--dsw-alias-label-dimmed); }
-.rg-card-open { background: var(--dsw-alias-bg-layer-2); border-color: var(--dsw-alias-label-dimmed); }
-.rg-head {
-  display: flex; align-items: center; width: 100%; gap: 12px; padding: 14px 16px;
-  color: inherit; background: transparent; border: 0; text-align: left; font: inherit;
-  cursor: pointer; border-radius: 12px;
-}
-.rg-head:focus-visible { outline: 2px solid var(--dsw-alias-brand-primary); outline-offset: -2px; }
-.rg-headtext { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
-.rg-title { font-weight: 600; font-size: 15px; line-height: 1.4; color: var(--dsw-alias-label-primary); }
-.rg-desc { font-size: 13px; line-height: 1.5; color: var(--dsw-alias-label-tertiary); }
-.rg-chevron { flex: none; color: var(--dsw-alias-label-tertiary); transition: transform .16s; }
-.rg-chevron-open { transform: rotate(180deg); }
-.rg-body { border-top: 1px solid var(--dsw-alias-border-l2); margin: 0 16px; padding: 0 0 12px; }
+.rg-title { font-weight: 500; font-size: 13px; line-height: 1.5; color: var(--dsw-alias-label-primary); }
+.rg-page { display: flex; flex-direction: column; min-width: 0; }
 .rg-field { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; }
 .rg-hint { display: block; font-size: 12px; line-height: 1.5; color: var(--dsw-alias-label-tertiary); margin-top: 6px; overflow-wrap: anywhere; }
 .rg-status-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 24px; }
@@ -90,7 +71,6 @@ window.__ModuleLoader__.load({ id: 'dsh-rembg', factory: (require) => {
   .rg-status-row, .rg-model-list { grid-template-columns: 1fr; }
   .rg-actions { align-items: flex-end; flex-wrap: wrap; }
   .rg-action-message { flex-basis: 100%; }
-  .rg-body { margin-left: 12px; margin-right: 12px; }
 }
 `
 
@@ -148,9 +128,8 @@ window.__ModuleLoader__.load({ id: 'dsh-rembg', factory: (require) => {
     return `${formatSize(bytes)}/s`
   }
 
-  function Card({ controller }) {
+  function Card({ controller, view }) {
     const state = React.useSyncExternalStore(controller.sub, controller.get, controller.get)
-    const [open, setOpen] = React.useState(false)
     const [message, setMessage] = React.useState('')
     const [confirmInitialization, setConfirmInitialization] = React.useState(false)
     const [confirmClear, setConfirmClear] = React.useState(false)
@@ -184,15 +163,7 @@ window.__ModuleLoader__.load({ id: 'dsh-rembg', factory: (require) => {
       setMessage(pending)
       try { await request(); setMessage('操作完成') } catch (error) { setMessage(error.message) }
     }
-    const chevron = React.createElement('svg', { className: `rg-chevron${open ? ' rg-chevron-open' : ''}`, width: 16, height: 16, viewBox: '0 0 16 16', fill: 'none', 'aria-hidden': true },
-      React.createElement('path', { d: 'M4 6l4 4 4-4', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round', strokeLinejoin: 'round' }))
-    return React.createElement('li', { className: `rg-card${open ? ' rg-card-open' : ''}` },
-      React.createElement('button', { className: 'rg-head', onClick: () => setOpen(!open), 'aria-expanded': open },
-        React.createElement('span', { className: 'rg-headtext' },
-          React.createElement('span', { className: 'rg-title' }, 'rembg 图像背景移除'),
-          React.createElement('span', { className: 'rg-desc' }, '可选择 CPU 或 GPU 模式初始化，模型需单独管理。')),
-        chevron),
-      open && React.createElement('div', { className: 'rg-body' },
+    const body = () => React.createElement(React.Fragment, null,
         React.createElement('div', { className: 'rg-field' },
           React.createElement('label', { className: 'rg-title' }, 'pip 镜像源'),
           React.createElement('select', { className: 'rg-input', value: mirror[1], disabled: !state.writable || initializing, onChange: event => action(() => controller.mutate([{ op: 'set', path: ['pipIndexUrl'], value: event.target.value }]), '正在保存镜像源…') },
@@ -272,16 +243,39 @@ window.__ModuleLoader__.load({ id: 'dsh-rembg', factory: (require) => {
               setConfirmClear(false)
               action(controller.clear, '正在清空环境…')
             },
-          }, confirmClear ? '确认清空' : '清空环境'))))
+          }, confirmClear ? '确认清空' : '清空环境')))
+    // Only two mount points exist for this entry: the row's page body
+    // (`view: 'page'`, where the shell already renders the title/description
+    // header) and the one-line fallback used when the package ships no
+    // description (`view: 'summary'`, which the shell renders inside a <p>, so
+    // it must stay inline — no block element and no collapsible card shell).
+    if (view !== 'page') return '本地 rembg 图像背景移除：可选择 CPU/GPU 模式初始化，模型单独管理。'
+    return React.createElement('div', { className: 'rg-page' }, body())
   }
 
   function apply(ctx) {
-    const style = document.createElement('style')
-    style.textContent = CSS
-    document.head.appendChild(style)
-    ctx.effect(() => () => style.remove(), 'rembg-gpu: styles')
+    // One store for the plugin lifetime, shared by every mount of the page.
+    // Created inside apply so a plugin unload drops it.
     const controller = store()
-    ctx.slots.inject('settings.plugin.item', () => ctx.slots.register({ name: 'settings.plugin.item', key: 'rembg-gpu-tool', id: 'rembg-gpu-tool', order: 55, inject: () => ({ controller }) }, Card))
+    // The <style> tag is owned by the plugin's own effect. Use ctx.effect for
+    // the removal so a plugin unload removes the tag with everything else; the
+    // registered component closes over it and only reads.
+    ctx.effect(() => {
+      const style = document.createElement('style')
+      style.textContent = CSS
+      document.head.appendChild(style)
+      return () => style.remove()
+    }, 'rembg-gpu: styles')
+    // DSH 0.1.7-rc.1 replaced the old Settings -> Plugins -> configurable-tab
+    // slot with `plugins.row.config`, keyed `<package name>#<row id>` from the
+    // bundle's patch (rowConfigKey in ui-plugin-manager). This bundle declares
+    // the row id `rembg`, so the key is `dsh-rembg#rembg` and the page opens
+    // from Plugins -> dsh-rembg -> the `rembg` row.
+    // The controller travels in the registered component's closure: the slot's
+    // `inject` face belongs to the owner (PluginConfigViewProps), not to us.
+    ctx.slots.inject('plugins.row.config', () =>
+      ctx.slots.register({ name: 'plugins.row.config', key: 'dsh-rembg#rembg' }, props =>
+        Card({ ...props, controller })))
   }
   return { inject: ['slots'], apply }
 } })

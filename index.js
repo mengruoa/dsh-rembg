@@ -5,35 +5,56 @@ import { randomUUID } from 'node:crypto'
 import { pipeline } from 'node:stream/promises'
 import { Readable } from 'node:stream'
 import { spawn } from 'node:child_process'
-import { basename, dirname, join, resolve, sep } from 'node:path'
+import { dirname, join, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { homedir } from 'node:os'
 import Schema from '@deepseek-ai/schemastery'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 
 export const name = 'rembg-gpu-tool'
-export const inject = ['tools', 'settings']
+export const inject = ['tools']
 
 /**
- * The namespace pattern the removed `settingsNamespace` helper enforced.
- * dsh 0.1.2-alpha dropped that export; importing a missing named export is a
- * module-evaluation error that stops the host from booting, so the check is
- * inlined here instead of imported. The namespace is a static string, so no
- * runtime dependency on `@deepseek-ai/dsh-settings` is needed.
+ * The settings namespace is NOT a free-standing name any more.
+ *
+ * dsh 0.1.7-alpha.1 removed `ctx.settings.register(ns, schema, options)`: plugin
+ * configuration now lives in the profile-owned Loader entry Config, and the
+ * settings service projects the fields a plugin declares `.volatile()` under
+ * this entry's own id (`SettingsDescriptor.ns` is the Loader entry id).
+ * The id is declared by `cordis.patch.yml` as `rembg`, so that is the namespace
+ * the web bridge describe/mutate calls must use.
  */
-const SETTINGS_NAMESPACE_PATTERN = /^[a-z][a-z0-9-]*$/
-export const REMBG_GPU_SETTINGS_NAMESPACE = 'rembg-gpu-tool'
+export const REMBG_GPU_SETTINGS_NAMESPACE = 'rembg'
 
-if (!SETTINGS_NAMESPACE_PATTERN.test(REMBG_GPU_SETTINGS_NAMESPACE)) {
-  throw new TypeError(`settings namespace "${REMBG_GPU_SETTINGS_NAMESPACE}" must match ${String(SETTINGS_NAMESPACE_PATTERN)}`)
-}
+/**
+ * Editable fields are declared `.volatile()`: the Loader hands `apply` live
+ * `Volatile<T>` references and commits profile edits in place without
+ * remounting the plugin. `.volatile()` requires the scoped
+ * `@deepseek-ai/schemastery` (>= 3.18.2).
+ */
 export const Config = Schema.object({
-  model: Schema.string().default('u2net'),
-  timeoutMs: Schema.number().default(7200000),
-  pipIndexUrl: Schema.string().default('https://mirrors.aliyun.com/pypi/simple/'),
-  autoInstall: Schema.boolean().default(true),
-  useGpu: Schema.boolean().default(true),
+  model: Schema.string().default('u2net').volatile(),
+  timeoutMs: Schema.number().default(7200000).volatile(),
+  pipIndexUrl: Schema.string().default('https://mirrors.aliyun.com/pypi/simple/').volatile(),
+  autoInstall: Schema.boolean().default(true).volatile(),
+  useGpu: Schema.boolean().default(true).volatile(),
 })
+
+/**
+ * Unwrap the live `Volatile<T>` references the Loader passes for `.volatile()`
+ * fields into a plain object, once per read.
+ * @param config - the raw second `apply` argument.
+ * @returns the current accepted values.
+ */
+function resolveConfig(config) {
+  if (config === null || typeof config !== 'object') return {}
+  const out = {}
+  for (const [key, value] of Object.entries(config)) {
+    out[key] = value !== null && typeof value === 'object' && typeof value.get === 'function' ? value.get() : value
+  }
+  return out
+}
+
 const PLUGIN_DIR = dirname(fileURLToPath(import.meta.url))
 const MODEL_CATALOG_PATH = join(PLUGIN_DIR, 'model.json')
 const MODELS = JSON.parse(readFileSync(MODEL_CATALOG_PATH, 'utf8'))
@@ -46,7 +67,16 @@ export function apply(ctx, config) {
   const gpuInstaller = join(PLUGIN_DIR, 'install.sh')
   const cpuInstaller = join(PLUGIN_DIR, 'install-cpu.sh')
   const modeFile = join(dataDir, '.install-mode')
-  const settings = ctx.settings.register(REMBG_GPU_SETTINGS_NAMESPACE, Config, { base: config, applies: 'live' })
+  // Every read goes through the live volatile references, so a settings-page
+  // write is visible to the next tool call and to the install status without a
+  // plugin remount.
+  const current = () => resolveConfig(config)
+  // This plugin ships its own settings page (Settings -> Plugins -> rembg row
+  // config); opt out of the auto-generated schema form so the two never render
+  // the same fields twice.
+  ctx.inject(['settings'], sctx => {
+    sctx.effect(() => sctx.settings.configure({ auto: false }, ctx.fiber), 'rembg-gpu: settings page policy')
+  })
   let installPromise = null; let installDone = false; let installError = null; let installController = null
   const modelJobs = new Map()
   function lastLogLine(logPath) {
@@ -144,7 +174,7 @@ export function apply(ctx, config) {
   function installStatus() {
     if (installPromise) return 'installing'
     const currentMode = installedMode()
-    const expectedMode = settings.get().useGpu ? 'gpu' : 'cpu'
+    const expectedMode = current().useGpu ? 'gpu' : 'cpu'
     // 环境未安装
     if (!installDone && !existsSync(python)) return 'not-installed'
     // GPU→CPU：GPU 环境自带 CPUExecutionProvider，无需重装
@@ -203,7 +233,7 @@ export function apply(ctx, config) {
     if (!modelJobs.has(id)) throw new Error(`模型 ${id} 当前没有下载任务`)
     modelControllers.get(id)?.abort()
   }
-  async function ensureInstalled(overrides = settings.get(), signal) {
+  async function ensureInstalled(overrides = current(), signal) {
     const mode = overrides.useGpu ? 'gpu' : 'cpu'
     const currentMode = installedMode()
     // GPU→CPU 切换：GPU 环境内置 CPUExecutionProvider，仅更新模式标记，无需重装
@@ -231,7 +261,7 @@ export function apply(ctx, config) {
         }
         const pipIndexUrl = overrides.pipIndexUrl || 'https://mirrors.aliyun.com/pypi/simple/'
         if (!['https://mirrors.aliyun.com/pypi/simple/', 'https://pypi.org/simple'].includes(pipIndexUrl)) throw new Error('只允许阿里云或官方 PyPI 镜像')
-        await run('bash', [mode === 'gpu' ? gpuInstaller : cpuInstaller, dataDir], overrides.timeoutMs || config.timeoutMs, { ...process.env, PIP_INDEX_URL: pipIndexUrl }, installController.signal)
+        await run('bash', [mode === 'gpu' ? gpuInstaller : cpuInstaller, dataDir], overrides.timeoutMs || current().timeoutMs, { ...process.env, PIP_INDEX_URL: pipIndexUrl }, installController.signal)
         installDone = true
       })().catch(error => { installError = error.message; throw error }).finally(() => { installPromise = null; installController = null })
     }
@@ -241,7 +271,7 @@ export function apply(ctx, config) {
     if (!installPromise) throw new Error('环境当前没有安装任务')
     installController?.abort()
   }
-  function snapshot(webCtx) { const descriptor = webCtx.settings.describe().find(row => row.ns === REMBG_GPU_SETTINGS_NAMESPACE); const mode = installedMode(); const status = installStatus(); const logPath = join(dataDir, 'logs', settings.get().useGpu ? 'install.log' : 'install-cpu.log'); const installLog = status === 'installing' ? lastLogLine(logPath) : null; return { writable: webCtx.settings.writable, installation: { status, mode, error: installError, installLog }, settings: { value: descriptor?.value ?? {}, revision: descriptor?.revision ?? 0, ...(descriptor?.base === undefined ? {} : { base: descriptor.base }), ...(descriptor?.user === undefined ? {} : { user: descriptor.user }) } } }
+  function snapshot(webCtx) { const descriptor = webCtx.settings.describe().find(row => row.ns === REMBG_GPU_SETTINGS_NAMESPACE); const mode = installedMode(); const status = installStatus(); const logPath = join(dataDir, 'logs', current().useGpu ? 'install.log' : 'install-cpu.log'); const installLog = status === 'installing' ? lastLogLine(logPath) : null; return { writable: webCtx.settings.writable, installation: { status, mode, error: installError, installLog }, settings: { value: descriptor?.value ?? {}, revision: descriptor?.revision ?? 0, ...(descriptor?.base === undefined ? {} : { base: descriptor.base }), ...(descriptor?.user === undefined ? {} : { user: descriptor.user }) } } }
   function json(res, status, value) { const body = JSON.stringify(value); res.writeHead(status, { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }); res.end(body) }
   function body(req) { return new Promise((resolve, reject) => { const chunks = []; req.on('data', x => chunks.push(x)); req.on('end', () => resolve(Buffer.concat(chunks).toString())); req.on('error', reject) }) }
   async function route(webCtx, req, res) { try {
@@ -254,7 +284,7 @@ export function apply(ctx, config) {
     if (req.method === 'GET') return json(res, 200, { ok: true, value: { ...snapshot(webCtx), gpu: await gpuCheck(), models: await models() } })
     if (req.method !== 'POST') return json(res, 405, { ok: false, error: { message: 'method not allowed' } }); const data = JSON.parse(await body(req))
     if (data.action === 'mutate') { if (!webCtx.settings.writable) throw new Error('settings provider is read-only'); await webCtx.settings.mutate(REMBG_GPU_SETTINGS_NAMESPACE, data.ops || [], data.expectedRevision) }
-    else if (data.action === 'initialize') { if (!webCtx.settings.writable) throw new Error('settings provider is read-only'); ensureInstalled(settings.get()).catch(() => {}) }
+    else if (data.action === 'initialize') { if (!webCtx.settings.writable) throw new Error('settings provider is read-only'); ensureInstalled(current()).catch(() => {}) }
     else if (data.action === 'stop-initialize') stopInstall()
     else if (data.action === 'install-model') { if (!webCtx.settings.writable) throw new Error('settings provider is read-only'); installModel(data.model).catch(() => {}) }
     else if (data.action === 'stop-model') stopModel(data.model)
@@ -263,7 +293,10 @@ export function apply(ctx, config) {
     else throw new Error('unknown action')
     return json(res, 200, { ok: true, value: { ...snapshot(webCtx), gpu: await gpuCheck(), models: await models() } })
   } catch (error) { return json(res, 400, { ok: false, error: { message: error.message } }) } }
-  ctx.inject(['webServer'], webCtx => webCtx.effect(() => webCtx.webServer.register({ kind: 'exact', path: '/_dsh/rembg-gpu/settings', handler: (req, res) => route(webCtx, req, res) }), 'rembg-gpu: settings route'))
+  // The bridge reads and writes this entry's Config through the settings
+  // service, so the child context must inject `settings` as well as
+  // `webServer`; a child only sees the services it names.
+  ctx.inject(['webServer', 'settings'], webCtx => webCtx.effect(() => webCtx.webServer.register({ kind: 'exact', path: '/_dsh/rembg-gpu/settings', handler: (req, res) => route(webCtx, req, res) }), 'rembg-gpu: settings route'))
   ctx.tools.register(defineTool({
     name: 'rembg_models',
     description: 'List rembg models that are installed and have passed SHA256 validation. Call this before choosing a model for rembg.',
@@ -282,6 +315,6 @@ export function apply(ctx, config) {
     description: 'Remove an image background with local rembg. Call rembg_models first to see installed models.',
     parameters: { path: { type: 'string', required: true, description: 'Absolute input image path.' }, model: { type: 'string', description: 'Installed rembg model name; omit to use the configured default.' } },
     output: { schema: { type: 'object', additionalProperties: false, properties: { output: { type: 'string', required: true }, input: { type: 'string', required: true }, model: { type: 'string', required: true }, width: { type: 'number' }, height: { type: 'number' } } }, render: (_args, value) => [{ type: 'text', text: `图片背景已移除：${value.output}（模型 ${value.model}）` }] },
-    async execute(args, exec) { const current = settings.get(); if (current.autoInstall) await ensureInstalled(current, exec.signal); const model = args.model || current.model; const available = await models(); if (!available.some(item => item.id === model && item.status === 'installed')) throw new Error(`模型 ${model} 未安装或校验无效。请先调用 rembg_models 查看已安装模型。`); const input = typeof args.path === 'string' && args.path.trim() ? args.path : null; if (!input) throw new Error('缺少输入图片路径：请提供绝对路径参数 path。'); const workspace = exec.agent?.session.header.cwd || process.cwd(); const outputDir = join(workspace, '.rembg-tmp'); await mkdir(outputDir, { recursive: true }); const output = join(outputDir, `${randomUUID()}.png`); const result = await run(python, [worker, '--input', input, '--output', output, '--model', model, ...(current.useGpu ? [] : ['--cpu'])], current.timeoutMs || config.timeoutMs, pythonEnv(dataDir), exec.signal); for (const line of result.stdout.split('\n').reverse()) { try { const value = JSON.parse(line); if (value.output) return value } catch {} } throw new Error('无法解析rembg 输出') },
+    async execute(args, exec) { const cfg = current(); if (cfg.autoInstall) await ensureInstalled(cfg, exec.signal); const model = args.model || cfg.model; const available = await models(); if (!available.some(item => item.id === model && item.status === 'installed')) throw new Error(`模型 ${model} 未安装或校验无效。请先调用 rembg_models 查看已安装模型。`); const input = typeof args.path === 'string' && args.path.trim() ? args.path : null; if (!input) throw new Error('缺少输入图片路径：请提供绝对路径参数 path。'); const workspace = exec.agent?.session.header.cwd || process.cwd(); const outputDir = join(workspace, '.rembg-tmp'); await mkdir(outputDir, { recursive: true }); const output = join(outputDir, `${randomUUID()}.png`); const result = await run(python, [worker, '--input', input, '--output', output, '--model', model, ...(cfg.useGpu ? [] : ['--cpu'])], cfg.timeoutMs || current().timeoutMs, pythonEnv(dataDir), exec.signal); for (const line of result.stdout.split('\n').reverse()) { try { const value = JSON.parse(line); if (value.output) return value } catch {} } throw new Error('无法解析rembg 输出') },
   }))
 }

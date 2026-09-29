@@ -1,8 +1,44 @@
 {
-  "name":"dsh-rembg","version":"0.1.15","type":"module","main":"index.js",
-  "exports":{".":"./index.js","./client":"./client.js","./package.json":"./package.json"},
-  "files":["index.js","client.js","model.json","install.sh","install-cpu.sh","rembg_gpu_worker.py","cordis.patch.yml"],
-  "description":"DSH rembg plugin with CPU/GPU background removal and setup UI","license":"MIT",
-  "peerDependencies":{"@deepseek-ai/dsh-settings":"*","@deepseek-ai/dsh-tools":"*","@deepseek-ai/schemastery":"*"},
-  "dsh":{"bundle":{"patch":"./cordis.patch.yml"},"client":{"platform":"web","inject":["@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-settings","@deepseek-ai/dsh-client-ui-settings-plugins"]}}
+  "name": "dsh-rembg",
+  "version": "0.2.0",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "model.json",
+    "install.sh",
+    "install-cpu.sh",
+    "rembg_gpu_worker.py",
+    "cordis.patch.yml"
+  ],
+  "description": "DSH 图像背景移除插件：本地 rembg（CPU/GPU），自带插件页设置面板",
+  "license": "MIT",
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-settings": ">=0.1.7-rc.1",
+    "@deepseek-ai/dsh-tools": ">=0.1.7-rc.1",
+    "@deepseek-ai/schemastery": ">=3.18.2"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-plugin-manager"
+      ]
+    },
+    "engines": {
+      "dsh": ">=0.1.7-rc.1"
+    }
+  }
 }
